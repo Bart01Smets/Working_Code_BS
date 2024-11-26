@@ -63,4 +63,33 @@ cat("Final Health Cost (per capita):", final_health_cost, "\n")
 cat("Final Social Activity Cost (per capita):", final_social_activity_cost, "\n")
 cat("Final Total Cost (per capita):", final_total_cost, "\n")
 
+# RUN DETERMINISTIC - FOR loop by day   ####
+########################################
+
+# Solve the model
+output_loop <- run_sir_costate_model(y = initial_state, times = time_pre_shock, func = sir_costate_model, parms = parameters)
+output_loop_df <- data.frame(output_loop)
+
+# Final Health Cost, Social Activity Cost, and Total Cost
+final_health_cost <- tail(output_loop_df$HealthCost, 1)
+final_social_activity_cost <- tail(output_loop_df$SocialActivityCost, 1)
+final_total_cost <- tail(output_loop_df$TotalCost, 1)
+
+# Print final costs
+cat("Final Health Cost (per capita):", final_health_cost, "\n")
+cat("Final Social Activity Cost (per capita):", final_social_activity_cost, "\n")
+cat("Final Total Cost (per capita):", final_total_cost, "\n")
+
+# COMPARE ODE VS LOOP SOLVERS   ####
+########################################
+
+head(output_pre_shock)
+head(output_loop)
+
+par(mfrow=c(2,2))
+plot(output_pre_shock_df$Ns)
+lines(output_loop$Ns,col=2)
+plot(output_pre_shock_df$Ns-output_loop$Ns)
+plot(output_pre_shock_df$Ni-output_loop$Ni)
+plot(output_pre_shock_df$TotalCost-output_loop$TotalCost)
 

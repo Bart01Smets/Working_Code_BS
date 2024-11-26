@@ -66,3 +66,18 @@ sir_costate_model <- function(time, state, parameters) {
   })
 }
 
+# run the SIRD kernel with a for loop (hence, not ODE solver)
+#y = initial_state; times = time_pre_shock; func = sir_costate_model; parms = parameters
+run_sir_costate_model <- function(y , times, func, parms){
+  
+  states_out        <- data.frame(matrix(NA, ncol=length(y), nrow=length(times)))
+  names(states_out) <- names(y)
+  states_out[1,]    <- y
+  dim(states_out)
+  
+  for(i in times[-1]){
+    states_out[i+1,] <- states_out[i,] + unlist(func(time = i, state = states_out[i,], parameters = parameters))
+  }
+  
+  return(states_out)
+}
