@@ -50,7 +50,7 @@ sir_costate_model <- function(time, state, parameters) {
     
     # Differential equations for SIR model with costates
     dNs <- -beta * a_t^2 * Ns * Ni
-    dNi <- beta * a_t^2 * Ns * Ni - gamma * Ni - pi * gamma * Ni
+    dNi <- beta * a_t^2 * Ns * Ni - gamma * Ni
     dNr <- gamma * Ni * (1 - pi)
     dNd <- gamma * Ni * pi
     dLambda_s <- (rho + delta) * Lambda_s - (u_t + (Lambda_i - Lambda_s) * beta * a_t^2 * Ni)
