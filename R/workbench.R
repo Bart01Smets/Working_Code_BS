@@ -32,7 +32,8 @@ parameters <- list(
   T2 = 1,                  # Duration after shock
   z = 1,                   # Shock multiplier for β
   export = FALSE,          # Export results flag
-  utility_type = "Log"     # Utility type: "Log" or "Quadratic"
+  utility_type = "Log",    # Utility type: "Log" or "Quadratic"
+  rng_seed = 123
 )
 
 # RUN DETERMINISTIC - ODE solver   ####
@@ -88,8 +89,8 @@ cat("Final Total Cost (per capita):", final_total_cost, "\n")
 head(output_pre_shock)
 head(output_loop)
 
-par(mfrow=c(2,2))
-plot(output_pre_shock_df$Ns)
+par(mfrow=c(2,2)) # get 4 sub-panels
+plot(output_pre_shock_df$Ns,ylab='Ns')
 lines(output_loop$Ns,col=2)
 plot(output_pre_shock_df$Ns-output_loop$Ns,ylab='diff Ns')
 plot(output_pre_shock_df$Ni-output_loop$Ni,ylab='diff Ni')
@@ -108,4 +109,44 @@ cat("*** USER-DEFINED *** ","\n")
 cat("Final Health Cost (per capita):", output_sim$HealthCost[nrow(output_sim)], "\n")
 cat("Final Social Activity Cost (per capita):", output_sim$SocialActivityCost[nrow(output_sim)], "\n")
 cat("Final Total Cost (per capita):", output_sim$TotalCost[nrow(output_sim)], "\n")
+
+
+# RUN MULTIPLE MODEL REALISATIONS   ####
+########################################
+
+num_experiments <- 10
+
+# set random number generator seed
+# redundant for deterministic modelling, but to be complete...
+set.seed(parameters$rng_seed)
+
+# init result matrix
+output_experiments <- data.frame(matrix(NA,nrow=num_experiments,ncol=length(initial_state)))
+names(output_experiments) <- names(initial_state)
+dim(output_experiments)
+
+# run multiple model realisations and store results
+for(i_exp in 1:num_experiments){
+  
+  # get run-specific parameters
+  parameters_exp <- parameters
+  
+  # example with slightly different beta per run
+  parameters_exp$beta <- parameters_exp$beta + rnorm(1,mean=0,sd=1e-3)
+  
+  # run model
+  output_sim <- run_sir_update(initial_state = initial_state, 
+                               times = time_pre_shock, 
+                               parameters = parameters_exp)
+  # store results
+  output_experiments[i_exp,] <- output_sim[nrow(output_sim),]
+}
+
+# inspect results
+output_experiments
+
+# some graphical exploration
+par(mfrow=c(1,1)) # reset sub-panels
+boxplot(output_experiments$SocialActivityCost,main='SocialActivityCost')
+
 
