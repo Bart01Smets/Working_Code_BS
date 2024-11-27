@@ -21,6 +21,7 @@ parameters <- list(
   delta = 0.67 / 365,      # Arrival rate of cure (δ)
   rho = 0.05 / 365,        # Discounting rate (ρ)
   pi = 0.0062,             # Infection fatality rate (π)
+    sigma=0.15,            # Determines size of drift term ()
   kappa = 197,             # Expected cost of infection (κ)
   ni0 = 0.0000527,         # Initial infected population (Ni0)
   ns0 = 1 - 0.0000527,     # Initial susceptible population (Ns0)
@@ -132,8 +133,8 @@ for(i_exp in 1:num_experiments){
   parameters_exp <- parameters
   
   # example with slightly different beta per run
-  parameters_exp$beta <- parameters_exp$beta + rnorm(1,mean=0,sd=1e-3)
-  
+ # parameters_exp$beta <- parameters_exp$beta + rnorm(1,mean=0,sd=1e-3)
+   parameters_exp$beta <- max(0, parameters_exp$beta + parameters$sigma * rnorm(1, mean = 0, sd = 1))
   # run model
   output_sim <- run_sir_update(initial_state = initial_state, 
                                times = time_pre_shock, 
@@ -144,6 +145,16 @@ for(i_exp in 1:num_experiments){
 
 # inspect results
 output_experiments
+
+# Calculate  average of each column
+column_means <- colMeans(output_experiments)
+
+
+# Format the output as a data frame for a cleaner tabular display
+column_means_df <- data.frame(Column = names(column_means), Mean = column_means)
+
+# Print the formatted data frame
+print(column_means_df)
 
 # some graphical exploration
 par(mfrow=c(1,1)) # reset sub-panels
