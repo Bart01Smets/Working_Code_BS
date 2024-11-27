@@ -59,6 +59,7 @@ final_social_activity_cost <- tail(output_pre_shock_df$SocialActivityCost, 1)
 final_total_cost <- tail(output_pre_shock_df$TotalCost, 1)
 
 # Print final costs
+cat("*** ODE SOLVER *** ","\n")
 cat("Final Health Cost (per capita):", final_health_cost, "\n")
 cat("Final Social Activity Cost (per capita):", final_social_activity_cost, "\n")
 cat("Final Total Cost (per capita):", final_total_cost, "\n")
@@ -76,6 +77,7 @@ final_social_activity_cost <- tail(output_loop_df$SocialActivityCost, 1)
 final_total_cost <- tail(output_loop_df$TotalCost, 1)
 
 # Print final costs
+cat("*** LOOP-BASED ODE *** ","\n")
 cat("Final Health Cost (per capita):", final_health_cost, "\n")
 cat("Final Social Activity Cost (per capita):", final_social_activity_cost, "\n")
 cat("Final Total Cost (per capita):", final_total_cost, "\n")
@@ -89,7 +91,21 @@ head(output_loop)
 par(mfrow=c(2,2))
 plot(output_pre_shock_df$Ns)
 lines(output_loop$Ns,col=2)
-plot(output_pre_shock_df$Ns-output_loop$Ns)
-plot(output_pre_shock_df$Ni-output_loop$Ni)
-plot(output_pre_shock_df$TotalCost-output_loop$TotalCost)
+plot(output_pre_shock_df$Ns-output_loop$Ns,ylab='diff Ns')
+plot(output_pre_shock_df$Ni-output_loop$Ni,ylab='diff Ni')
+plot(output_pre_shock_df$TotalCost-output_loop$TotalCost,ylab='diff TotalCost')
+
+
+# ALTERNATIVE FOR LOOP-BASED SOLVER   ####
+########################################
+
+# call function
+output_sim <- run_sir_update(initial_state = initial_state, 
+                             times = time_pre_shock, 
+                             parameters = parameters)
+# Print final costs
+cat("*** USER-DEFINED *** ","\n")
+cat("Final Health Cost (per capita):", output_sim$HealthCost[nrow(output_sim)], "\n")
+cat("Final Social Activity Cost (per capita):", output_sim$SocialActivityCost[nrow(output_sim)], "\n")
+cat("Final Total Cost (per capita):", output_sim$TotalCost[nrow(output_sim)], "\n")
 

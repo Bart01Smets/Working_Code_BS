@@ -81,3 +81,69 @@ run_sir_costate_model <- function(y , times, func, parms){
   
   return(states_out)
 }
+
+# alternative to run the SIRD kernel with a for loop (hence, not ODE solver)
+#y = initial_state; times = time_pre_shock; func = sir_costate_model; parms = parameters
+run_sir_update <- function(initial_state, times, parameters){
+
+  # copy initial states
+  states <- data.frame(t(initial_state))
+  
+  # set summary data.table
+  states_out        <- data.frame(matrix(NA, nrow=length(times), ncol=length(states)))
+  names(states_out) <- names(states)
+  dim(states_out)
+
+  # start with initial states
+  states_out[1,]    <- states
+  dim(states_out)
+  
+  # run over times (excl the first one)
+  for(i_day in times[-1]){
+      
+      # Calculate optimal action based on utility type
+      a_t <- a_function(parameters$alpha, parameters$beta, 
+                        states$Ns, states$Ni, 
+                        states$Lambda_s, states$Lambda_i, 
+                        parameters$utility_type, parameters$tolerance)
+      
+      # Calculate utility of action
+      u_t <- utility_function(a_t, parameters$utility_type)
+      
+      # Calculate transitions
+      new_infections <- parameters$beta * a_t^2 * states$Ns * states$Ni
+      new_recoveries <- parameters$gamma * states$Ni
+      
+      # get health transitions
+      dNs <- -new_infections
+      dNi <- new_infections - new_recoveries
+      dNr <- new_recoveries * (1 - parameters$pi)
+      dNd <- new_recoveries * parameters$pi
+      
+      # calculate change in lambda 
+      dLambda_s <- (parameters$rho + parameters$delta) * states$Lambda_s - 
+                      (u_t + (states$Lambda_i - states$Lambda_s) *  parameters$beta * a_t^2 * states$Ni)
+      dLambda_i <- (parameters$rho + parameters$delta) * states$Lambda_i - 
+                    (u_t + parameters$alpha * (states$Lambda_i - states$Lambda_s) *  parameters$beta * a_t^2 * states$Ns) - 
+                    parameters$gamma * (parameters$kappa + states$Lambda_i)
+
+      # get current costs (per capita)
+      states$HealthCost <- states$HealthCost + (parameters$fx / (states$Ns + states$Ni + states$Nr + states$Nd)) * exp(-(parameters$rho + parameters$delta) * i_day) * parameters$gamma * parameters$kappa * states$Ni
+      states$SocialActivityCost <- states$SocialActivityCost + (parameters$fx / (states$Ns + states$Ni + states$Nr + states$Nd)) * exp(-(parameters$rho + parameters$delta) * i_day) * (states$Ns + states$Ni) * abs(u_t)
+      states$TotalCost <- states$HealthCost + states$SocialActivityCost
+
+      # Update states
+      # note: this needs to be done at the end, otherwise it affects the Lambda calculation
+      states$Ns <- states$Ns + dNs
+      states$Ni <- states$Ni + dNi
+      states$Nr <- states$Nr + dNr
+      states$Nd <- states$Nd + dNd
+      states$Lambda_s <- states$Lambda_s + dLambda_s
+      states$Lambda_i <- states$Lambda_i + dLambda_i
+      
+      # keep track of the states
+      states_out[i_day+1,] = states
+     }
+  
+  return(states_out)
+}
