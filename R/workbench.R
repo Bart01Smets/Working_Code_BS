@@ -160,4 +160,70 @@ print(column_means_df)
 par(mfrow=c(1,1)) # reset sub-panels
 boxplot(output_experiments$SocialActivityCost,main='SocialActivityCost')
 
+# RUN STOCHASTIC MODEL REALISATIONS   ####
+########################################
+
+# get reference: deterministic model
+output_sim_deterministic <- run_sir_update(initial_state = initial_state, 
+                                       times = time_pre_shock, 
+                                       parameters = parameters,
+                                       infections_function = get_infections_determistic)
+# define number of stochastic runs
+num_experiments <- 10
+
+# set random number generator seed
+# redundant for deterministic modelling, but to be complete...
+set.seed(parameters$rng_seed)
+
+# init result matrix
+output_experiments <- data.frame(matrix(NA,nrow=num_experiments,ncol=length(initial_state)))
+names(output_experiments) <- names(initial_state)
+dim(output_experiments)
+
+# run multiple model realisations and store results
+for(i_exp in 1:num_experiments){
+  
+  # run model
+  output_sim <- run_sir_update(initial_state = initial_state, 
+                               times = time_pre_shock, 
+                               parameters = parameters,
+                               infections_function = get_infections_stochastic_beta)
+  # store results
+  output_experiments[i_exp,] <- output_sim[nrow(output_sim),]
+}
+
+# inspect results
+output_experiments
+
+# Calculate  average of each column
+column_means <- colMeans(output_experiments)
+
+
+# Format the output as a data frame for a cleaner tabular display
+column_means_df <- data.frame(Column = names(column_means), Mean = column_means)
+
+# Print the formatted data frame
+print(column_means_df)
+
+# some graphical exploration
+par(mfrow=c(2,2)) # reset sub-panels
+xx <- boxplot(output_experiments$SocialActivityCost,main='SocialActivityCost')
+abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
+text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
+     labels=('deterministic'), pos=3,col=4)
+
+# explore last simulation: infections
+plot(output_sim$Ni,col=2,main='Infections',type='l',lwd=2) # infections, stochastic
+lines(output_sim_deterministic$Ni,col=1) # infections, stochastic
+
+# explore last simulation: all health states
+plot(output_sim$Ns,main='Health states',ylim=0:1,type='l')
+lines(output_sim$Ni,col=2)
+lines(output_sim$Nr,col=3)
+lines(output_sim$Nd,col=4)
+legend('topright',
+       c('Ns','Ni','Nr','Nd'),
+       col = 1:4,
+       lwd=2,
+       ncol = 4)
 

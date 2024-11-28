@@ -82,9 +82,25 @@ run_sir_costate_model <- function(y , times, func, parms){
   return(states_out)
 }
 
+# calculate the number of infections: deterministic
+get_infections_determistic <- function(beta,a_t,Ns,Ni){
+  return(beta * a_t * Ns * Ni)
+}
+
+# calculate the number of infections: stochastic beta
+get_infections_stochastic_beta <- function(beta,a_t,Ns,Ni){
+  
+  # random noise on beta
+  beta_sample <- max(0.0001,rnorm(1, mean = beta, sd = beta/10))
+  
+  # return new infections
+  return(beta_sample * a_t * Ns * Ni)
+}
+
 # alternative to run the SIRD kernel with a for loop (hence, not ODE solver)
 #y = initial_state; times = time_pre_shock; func = sir_costate_model; parms = parameters
-run_sir_update <- function(initial_state, times, parameters){
+run_sir_update <- function(initial_state, times, parameters, 
+                           infections_function = get_infections_determistic){ # note: the default is get_infections_determistic()
 
   # copy initial states
   states <- data.frame(t(initial_state))
@@ -111,7 +127,7 @@ run_sir_update <- function(initial_state, times, parameters){
       u_t <- utility_function(a_t, parameters$utility_type)
       
       # Calculate transitions
-      new_infections <- parameters$beta * a_t^2 * states$Ns * states$Ni
+      new_infections <- infections_function(parameters$beta, a_t^2, states$Ns, states$Ni)
       new_recoveries <- parameters$gamma * states$Ni
       
       # get health transitions
