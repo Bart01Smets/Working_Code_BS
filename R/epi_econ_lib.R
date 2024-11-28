@@ -91,7 +91,7 @@ get_infections_determistic <- function(beta,a_t,Ns,Ni){
 get_infections_stochastic_beta <- function(beta,a_t,Ns,Ni){
   
   # random noise on beta
-  beta_sample <- max(0.0001,rnorm(1, mean = beta, sd = beta/10))
+  beta_sample <- max(0.0001, beta + parameters$sigma * rnorm(1, mean = 0, sd =1))#beta/2
   
   # return new infections
   return(beta_sample * a_t * Ns * Ni)
