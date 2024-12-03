@@ -10,6 +10,10 @@ library(deSolve)
 a_function <- function(alpha, beta, Ns, Ni, Lambda_s, Lambda_i, utility_type, tolerance) {
   denom <- max(abs(Lambda_s - Lambda_i), tolerance)  # Avoid division by zero
   
+  if(Ni == 0){
+    return(1)
+  }
+  
   if (utility_type == "Log") {
     sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
     return( (-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom) )
