@@ -46,7 +46,8 @@ parameters$tolerance <- 10^-6
 
 # Initial state variables including separate costs
 initial_state <- c(Ns = parameters$ns0, Ni = parameters$ni0, Nr = parameters$nr0, Nd = parameters$nd0, 
-                   Lambda_s = 0, Lambda_i = 0, HealthCost = 0, SocialActivityCost = 0, TotalCost = 0)
+                   Lambda_s = 0, Lambda_i = 0, HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
+                   a_t = NA, u_t = NA) # add a_t and u_t to keep track of this over time
 
 # Time sequence for pre-shock
 time_pre_shock <- seq(0, parameters$T1, by = 1)

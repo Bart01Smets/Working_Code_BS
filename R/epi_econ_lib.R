@@ -62,7 +62,7 @@ sir_costate_model <- function(time, state, parameters) {
     dTotalCost <- dHealthCost + dSocialActivityCost
     
     # Return the rate of change for each state variable
-    return(list(c(dNs, dNi, dNr, dNd, dLambda_s, dLambda_i, dHealthCost, dSocialActivityCost, dTotalCost)))
+    return(list(c(dNs, dNi, dNr, dNd, dLambda_s, dLambda_i, dHealthCost, dSocialActivityCost, dTotalCost, a_t, u_t)))
   })
 }
 
@@ -157,6 +157,9 @@ run_sir_update <- function(initial_state, times, parameters,
       states$Lambda_s <- states$Lambda_s + dLambda_s
       states$Lambda_i <- states$Lambda_i + dLambda_i
       
+      states$a_t <- a_t
+      states$u_t <- u_t
+      
       # keep track of the states
       states_out[i_day+1,] = states
      }
@@ -224,6 +227,9 @@ run_sir_binomial <- function(initial_state,
     states$Nd <- states$Nd + dNd
     states$Lambda_s <- states$Lambda_s + dLambda_s
     states$Lambda_i <- states$Lambda_i + dLambda_i
+    
+    states$a_t <- a_t
+    states$u_t <- u_t
     
     # keep track of the states
     states_out[i_day+1,] = states
