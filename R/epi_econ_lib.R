@@ -167,14 +167,30 @@ run_sir_update <- function(initial_state, times, parameters,
   return(states_out)
 }
 
+# calculate the number of infections or recovereis
+get_transitions_stochastic <- function(n, prob){
+  return(sum(rbinom(n = n,size = 1, prob = prob)))
+}
+
+get_transitions_deterministic <- function(n, prob){
+  return((n * prob))
+}
+
 # to run the SIRD kernel with a for loop and binomial transistions
 #y = initial_state; times = time_pre_shock; func = sir_costate_model; parms = parameters
 run_sir_binomial <- function(initial_state, 
                              times, 
-                             parameters){ # note: the default is get_infections_determistic()
+                             parameters,
+                             update_function = get_transitions_stochastic){ # note: the default is get_infections_determistic()
   
   # copy initial states
   states <- data.frame(t(initial_state))
+  
+  # convert population fractions into numbers
+  states[grepl('N.',names(states))] <- round(states[grepl('N.',names(states))] * parameters$pop_size)
+  
+  # make sure the total population size is fixed (by changing Ns if needed)
+  states[grepl('Ns',names(states))] <- parameters$pop_size - sum(states[grepl('N.',names(states)) & !grepl('Ns',names(states))])
   
   # set summary data.table
   states_out        <- data.frame(matrix(NA, nrow=length(times), ncol=length(states)))
@@ -190,7 +206,7 @@ run_sir_binomial <- function(initial_state,
     
     # Calculate optimal action based on utility type
     a_t <- a_function(parameters$alpha, parameters$beta, 
-                      states$Ns, states$Ni, 
+                      states$Ns/parameters$pop_size, states$Ni/parameters$pop_size, 
                       states$Lambda_s, states$Lambda_i, 
                       parameters$utility_type, parameters$tolerance)
     
@@ -198,20 +214,21 @@ run_sir_binomial <- function(initial_state,
     u_t <- utility_function(a_t, parameters$utility_type)
     
     # Calculate transitions
-    new_infections <- infections_function(parameters$beta, a_t^2, states$Ns, states$Ni)
-    new_recoveries <- parameters$gamma * states$Ni
+    new_infections <- update_function(states$Ns, prob = parameters$beta * a_t^2 * states$Ni/parameters$pop_size)
+    new_recoveries <- update_function(states$Ni, prob = parameters$gamma)
+    new_death      <- update_function(new_recoveries, prob = parameters$pi)
     
     # get health transitions
     dNs <- -new_infections
     dNi <- new_infections - new_recoveries
-    dNr <- new_recoveries * (1 - parameters$pi)
-    dNd <- new_recoveries * parameters$pi
+    dNr <- new_recoveries - new_death
+    dNd <- new_death
     
     # calculate change in lambda 
     dLambda_s <- (parameters$rho + parameters$delta) * states$Lambda_s - 
-      (u_t + (states$Lambda_i - states$Lambda_s) *  parameters$beta * a_t^2 * states$Ni)
+      (u_t + (states$Lambda_i - states$Lambda_s) *  parameters$beta * a_t^2 * states$Ni/parameters$pop_size)
     dLambda_i <- (parameters$rho + parameters$delta) * states$Lambda_i - 
-      (u_t + parameters$alpha * (states$Lambda_i - states$Lambda_s) *  parameters$beta * a_t^2 * states$Ns) - 
+      (u_t + parameters$alpha * (states$Lambda_i - states$Lambda_s) *  parameters$beta * a_t^2 * states$Ns/parameters$pop_size) - 
       parameters$gamma * (parameters$kappa + states$Lambda_i)
     
     # get current costs (per capita)
