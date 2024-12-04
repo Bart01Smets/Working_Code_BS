@@ -2,6 +2,7 @@
 # Workbench script for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic modelling
+# - stepwise increase of the model complexity until the binomail model
 #
 ######################################################### #
 
@@ -21,7 +22,7 @@ parameters <- list(
   delta = 0.67 / 365,      # Arrival rate of cure (δ)
   rho = 0.05 / 365,        # Discounting rate (ρ)
   pi = 0.0062,             # Infection fatality rate (π)
-    sigma=1.689,            # Determines size of drift term ()
+  sigma = 1.689,            # Determines size of drift term ()
   kappa = 197,             # Expected cost of infection (κ)
   ni0 = 0.0000527,         # Initial infected population (Ni0)
   ns0 = 1 - 0.0000527,     # Initial susceptible population (Ns0)
