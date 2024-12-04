@@ -21,7 +21,7 @@ parameters <- list(
   delta = 0.67 / 365,      # Arrival rate of cure (δ)
   rho = 0.05 / 365,        # Discounting rate (ρ)
   pi = 0.0062,             # Infection fatality rate (π)
-  sigma = 0.15,           # Determines stochastic beta_t =  N(beta,sigma)
+  sigma = 0.15,            # Determines stochastic beta_t =  N(beta,sigma)
   kappa = 197,             # Expected cost of infection (κ)
   ni0 = 0.0000527,         # Initial infected population (Ni0)
   ns0 = 1 - 0.0000527,     # Initial susceptible population (Ns0)
@@ -39,6 +39,12 @@ parameters$pop_size <- 1e4
 
 # define number of stochastic runs
 num_experiments <- 100
+
+# define fadeout threshold
+fadeout_threshold = 100
+
+# define default plot_tag (for development)
+plot_tag <- 'dev'
 
 # RUN DETERMINISTIC - ODE solver   ####
 ########################################
@@ -82,11 +88,8 @@ output_experiments <- run_experiments(initial_state = initial_state,
                                       num_experiments)
 
 # inspect results
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='stoch beta',
-                   bool_excl_fadeout = FALSE)
+compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='stoch beta')
 
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='stoch beta',
-                   bool_excl_fadeout = TRUE)
 
 # RUN STOCHASTIC BINIOMIAL MODEL REALISATIONS   ####
 ####################################################
@@ -105,10 +108,9 @@ output_experiments <- run_experiments(initial_state = initial_state,
                                       num_experiments)
 
 # inspect all results
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
-                   bool_excl_fadeout = FALSE)
+compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial')
 
-# inspect results excl fade out
+# inspect results excl fadeout
 compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
-                   bool_excl_fadeout = TRUE)
+                   fadeout_threshold = fadeout_threshold)
 

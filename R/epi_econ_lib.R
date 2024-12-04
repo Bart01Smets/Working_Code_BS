@@ -38,7 +38,7 @@ get_transitions_stochastic <- function(n, prob){
 }
 
 get_transitions_deterministic <- function(n, prob){
-  return((n * prob))
+  return(n * prob)
 }
 
 # to run the SIRD kernel with a for loop and binomial transistions
@@ -152,7 +152,7 @@ get_mean_ci_text <- function(vect){
 
 # function to compare stochastic and deterministic output
 compare_sim_output <- function(output_experiments, output_deterministic, 
-                               plot_tag, bool_excl_fadeout = FALSE){
+                               plot_tag, fadeout_threshold = 0){
   
   # split output
   output_summary <- output_experiments$output_summary
@@ -161,9 +161,9 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   # get final states of deterministic model
   output_summary_deterministic <- output_sim_deterministic[nrow(output_sim_deterministic),]
   
-  # identify simulations with stochastic fade out 
-  if(bool_excl_fadeout){
-    exp_fade_out <- output_summary$Ni == 0
+  # option to identify simulations without stochastic fade out 
+  if(fadeout_threshold > 0){
+    exp_fade_out   <- (output_summary$Nr+output_summary$Nr) < fadeout_threshold
     output_summary <- output_summary[!exp_fade_out,]
     output_all <- output_all[!exp_fade_out,,]
     plot_tag <- paste(plot_tag,'(excl. fadeout)')
@@ -194,7 +194,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   # explore states
   sel_states <- names(initial_state)[!grepl('Total',names(initial_state))]
   for(i_state in sel_states){
-    y_lim <- range(0,output_all[,,i_state],na.rm = TRUE)
+    y_lim <- range(0,output_all[,,i_state],output_sim_deterministic[,i_state],na.rm = TRUE)
     plot(output_sim_deterministic[,i_state], col=1, main=i_state, ylab = i_state, xlab = 'time', ylim = y_lim, type='l', lwd=2) # infections, deterministic
     for(i_exp in 1:dim(output_all)[1]){
       output_sim <- data.frame(output_all[i_exp,,i_state])
