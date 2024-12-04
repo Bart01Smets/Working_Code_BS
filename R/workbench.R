@@ -37,6 +37,12 @@ parameters <- list(
   rng_seed = 123
 )
 
+# define population size
+parameters$pop_size <- 1e4
+
+# define number of stochastic runs
+num_experiments <- 100
+
 # RUN DETERMINISTIC - ODE solver   ####
 ########################################
 
@@ -116,12 +122,6 @@ cat("Final Total Cost (per capita):", output_sim$TotalCost[nrow(output_sim)], "\
 # RUN MULTIPLE MODEL REALISATIONS   ####
 ########################################
 
-num_experiments <- 10
-
-# set random number generator seed
-# redundant for deterministic modelling, but to be complete...
-set.seed(parameters$rng_seed)
-
 # init result matrix
 output_experiments <- data.frame(matrix(NA,nrow=num_experiments,ncol=length(initial_state)))
 names(output_experiments) <- names(initial_state)
@@ -133,9 +133,6 @@ for(i_exp in 1:num_experiments){
   # get run-specific parameters
   parameters_exp <- parameters
   
-  # example with slightly different beta per run
- # parameters_exp$beta <- parameters_exp$beta + rnorm(1,mean=0,sd=1e-3)
-#   parameters_exp$beta <- max(0, parameters_exp$beta + parameters$sigma * rnorm(1, mean = 0, sd = 1))
   # run model
   output_sim <- run_sir_update(initial_state = initial_state, 
                                times = time_pre_shock, 
@@ -169,11 +166,7 @@ output_sim_deterministic <- run_sir_update(initial_state = initial_state,
                                        times = time_pre_shock, 
                                        parameters = parameters,
                                        infections_function = get_infections_determistic)
-# define number of stochastic runs
-num_experiments <- 10
-
 # set random number generator seed
-# redundant for deterministic modelling, but to be complete...
 set.seed(parameters$rng_seed)
 
 # init result matrix
@@ -194,7 +187,7 @@ for(i_exp in 1:num_experiments){
 }
 
 # inspect results
-output_experiments
+compare_sim_output(output_sim, output_experiments, output_sim_deterministic, tag='stochastic beta')
 
 # Calculate  average of each column
 column_means <- colMeans(output_experiments)
@@ -206,33 +199,9 @@ column_means_df <- data.frame(Column = names(column_means), Mean = column_means)
 # Print the formatted data frame
 print(column_means_df)
 
-# some graphical exploration
-par(mfrow=c(2,2)) # reset sub-panels
-xx <- boxplot(output_experiments$SocialActivityCost,main='SocialActivityCost')
-abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
-text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
-     labels=('deterministic'), pos=3,col=4)
-
-# explore last simulation: infections
-plot(output_sim$Ni,col=2,main='Infections',type='l',lwd=2) # infections, stochastic
-lines(output_sim_deterministic$Ni,col=1) # infections, stochastic
-
-# explore last simulation: all health states
-plot(output_sim$Ns,main='Health states',ylim=0:1,type='l')
-lines(output_sim$Ni,col=2)
-lines(output_sim$Nr,col=3)
-lines(output_sim$Nd,col=4)
-legend('topright',
-       c('Ns','Ni','Nr','Nd'),
-       col = 1:4,
-       lwd=2,
-       ncol = 4)
 
 # RUN STOCHASTIC BINIOMIAL MODEL REALISATIONS   ####
 ####################################################
-
-# switch population from proportions to numbers
-parameters$pop_size <- 1e4
 
 # get reference: deterministic model
 output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
@@ -240,16 +209,7 @@ output_sim_deterministic <- run_sir_binomial(initial_state = initial_state,
                                             parameters = parameters,
                                             update_function = get_transitions_deterministic)
 
-output_sim <- run_sir_binomial(initial_state = initial_state, 
-                               times = time_pre_shock, 
-                               parameters = parameters,
-                               update_function = get_transitions_stochastic)
-
-# define number of stochastic runs
-num_experiments <- 100
-
 # set random number generator seed
-# redundant for deterministic modelling, but to be complete...
 set.seed(parameters$rng_seed)
 
 # init result matrix
@@ -270,38 +230,6 @@ for(i_exp in 1:num_experiments){
 }
 
 # inspect results
-output_experiments
-
-# identify simulations with stochastic fade out 
-output_experiments$bool_fade_out <- output_experiments$Ni == 0
-
-# some graphical exploration
-par(mfrow=c(2,2)) # reset sub-panels
-boxplot(output_experiments$SocialActivityCost,main='SocialActivityCost')
-abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
-text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
-     labels=('deterministic'), pos=3,col=4)
-
-# some graphical exploration (exlc stochastic fade out)
-boxplot(output_experiments$SocialActivityCost[!output_experiments$bool_fade_out],main='SocialActivityCost')
-abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
-text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
-     labels=('deterministic'), pos=3,col=4)
-
-
-# explore last simulation: infections
-plot(output_sim$Ni,col=2,main='Infections',type='l',lwd=2) # infections, stochastic
-lines(output_sim_deterministic$Ni,col=1) # infections, stochastic
-
-# explore last simulation: all health states
-plot(output_sim$Ns,main='Health states',ylim=c(0,parameters$pop_size),type='l')
-lines(output_sim$Ni,col=2)
-lines(output_sim$Nr,col=3)
-lines(output_sim$Nd,col=4)
-legend('topright',
-       c('Ns','Ni','Nr','Nd'),
-       col = 1:4,
-       lwd=2,
-       ncol = 4)
+compare_sim_output(output_sim, output_experiments, output_sim_deterministic, tag='binomial process')
 
 

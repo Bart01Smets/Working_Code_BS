@@ -258,3 +258,42 @@ run_sir_binomial <- function(initial_state,
   
   return(states_out)
 }
+
+
+# function to compare stochastic and deterministic output
+compare_sim_output <- function(output_sim, output_experiments, output_deterministic, tag){
+  
+  # identify simulations with stochastic fade out 
+  output_experiments$bool_fade_out <- output_experiments$Ni == 0
+  
+  # some graphical exploration
+  par(mfrow=c(2,2)) # reset sub-panels
+  boxplot(output_experiments$SocialActivityCost, ylab='SocialActivityCost', main=paste(tag,'(all)'))
+  abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
+  text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
+       labels=('deterministic'), pos=3,col=4)
+  
+  # some graphical exploration (excl stochastic fade out)
+  boxplot(output_experiments$SocialActivityCost[!output_experiments$bool_fade_out], ylab='SocialActivityCost', main=paste(tag,'(excl fadeout)'))
+  abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
+  text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
+       labels=('deterministic'), pos=3,col=4)
+  
+  # explore last simulation: infections
+  plot(output_sim$Ni,col=2,main='Infections',type='l',lwd=2) # infections, stochastic
+  lines(output_sim_deterministic$Ni,col=1) # infections, stochastic
+  
+  # explore last simulation: all health states
+  plot(output_sim$Ns,main='Health states',ylim=c(0,parameters$pop_size),type='l')
+  lines(output_sim$Ni,col=2)
+  lines(output_sim$Nr,col=3)
+  lines(output_sim$Nd,col=4)
+  legend('topright',
+         c('Ns','Ni','Nr','Nd'),
+         col = 1:4,
+         lwd = 2,
+         ncol = 4,
+         cex=0.5)
+  
+}
+
