@@ -71,7 +71,7 @@ run_sir_binomial <- function(initial_state,
     
     if(bool_stochastic_beta){
       # random noise on beta
-      beta_t <- max(0.0001, parameters$beta + parameters$sigma * rnorm(1, mean = 0, sd =parameters$beta/2))#1
+      beta_t <- max(0.0001,  rnorm(1, mean = parameters$beta, sd =parameters$sigma))#1
     } else{
       beta_t <- parameters$beta
     }

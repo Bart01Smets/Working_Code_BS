@@ -21,7 +21,7 @@ parameters <- list(
   delta = 0.67 / 365,      # Arrival rate of cure (δ)
   rho = 0.05 / 365,        # Discounting rate (ρ)
   pi = 0.0062,             # Infection fatality rate (π)
-  sigma = 1.689,            # Determines size of drift term ()
+  sigma = 0.15,           # Determines stochastic beta_t =  N(beta,sigma)
   kappa = 197,             # Expected cost of infection (κ)
   ni0 = 0.0000527,         # Initial infected population (Ni0)
   ns0 = 1 - 0.0000527,     # Initial susceptible population (Ns0)
@@ -29,10 +29,7 @@ parameters <- list(
   nd0 = 0,                 # Initial dead population (Nd0)
   alpha = 0,               # Altruism parameter (default set to no altruism)
   fx = 123,                # Exchange rate multiplier for USD conversion
-  T1 = 500,                # Time of shock
-  T2 = 1,                  # Duration after shock
-  z = 1,                   # Shock multiplier for β
-  export = FALSE,          # Export results flag
+  time_horizon = 500,      # Time of shock
   utility_type = "Log",    # Utility type: "Log" or "Quadratic"
   rng_seed = 123
 )
@@ -64,7 +61,7 @@ initial_state <- c(Ns = parameters$ns0,
                    u_t = NA) # add a_t and u_t to keep track of this over time
 
 # Time sequence for pre-shock
-times <- seq(0, parameters$T1, by = 1)
+times <- seq(0, parameters$time_horizon, by = 1)
 
 # RUN STOCHASTIC BETA REALISATIONS  ####
 ########################################
