@@ -5,6 +5,7 @@
 ################################################################ #
 
 library(deSolve)
+library(confintr)
 
 # Function to calculate the optimal action (a_t)
 a_function <- function(alpha, beta, Ns, Ni, Lambda_s, Lambda_i, utility_type, tolerance) {
@@ -260,6 +261,27 @@ run_sir_binomial <- function(initial_state,
 }
 
 
+# get a vector with the economic summary stats
+get_summary_stats <- function(sim_output){
+  return(c(get_mean_ci_text(sim_output$HealthCost),
+           get_mean_ci_text(sim_output$SocialActivityCost),
+           get_mean_ci_text(sim_output$TotalCost)))
+}
+
+# get the mean and CI in text format
+get_mean_ci_text <- function(vect){
+  
+  # if only one value, return this value
+  if(length(vect)==1){
+    return(vect)
+  } else{ # else, calculate mean and 95% confidence intervals
+    summary_value <- ci_mean(vect)
+    summary_text  <- paste0(round(summary_value$estimate),' [',
+                            paste(round(summary_value$interval),collapse=','),']')
+    return(summary_text)  
+  }
+}
+
 # function to compare stochastic and deterministic output
 compare_sim_output <- function(output_sim, output_experiments, output_deterministic, tag){
   
@@ -269,12 +291,14 @@ compare_sim_output <- function(output_sim, output_experiments, output_determinis
   # some graphical exploration
   par(mfrow=c(2,2)) # reset sub-panels
   boxplot(output_experiments$SocialActivityCost, ylab='SocialActivityCost', main=paste(tag,'(all)'))
+  points(1,mean(output_experiments$SocialActivityCost),pch=8) # mean
   abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
   text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
        labels=('deterministic'), pos=3,col=4)
   
   # some graphical exploration (excl stochastic fade out)
   boxplot(output_experiments$SocialActivityCost[!output_experiments$bool_fade_out], ylab='SocialActivityCost', main=paste(tag,'(excl fadeout)'))
+  points(1,mean(output_experiments$SocialActivityCost[!output_experiments$bool_fade_out]),pch=8) # mean
   abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
   text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
        labels=('deterministic'), pos=3,col=4)
@@ -295,5 +319,12 @@ compare_sim_output <- function(output_sim, output_experiments, output_determinis
          ncol = 4,
          cex=0.5)
   
-}
+  # Print final stats
+  print(paste('SUMMARY STATISTICS:',tag))
+  print(data.frame(output=c('Health Cost (per capita)','Social Activity Cost (per capita)','Total Cost (per capita)'),
+             determ=get_summary_stats(output_sim_deterministic[nrow(output_sim_deterministic),]),
+             stochastic_all = get_summary_stats(output_experiments),
+             stochstic_select = get_summary_stats(output_experiments[!output_experiments$bool_fade_out,])))
+  
+  }
 
