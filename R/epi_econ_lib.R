@@ -158,6 +158,9 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   output_summary <- output_experiments$output_summary
   output_all     <- output_experiments$output_all
   
+  # get final states of deterministic model
+  output_summary_deterministic <- output_sim_deterministic[nrow(output_sim_deterministic),]
+  
   # identify simulations with stochastic fade out 
   if(bool_excl_fadeout){
     exp_fade_out <- output_summary$Ni == 0
@@ -176,10 +179,21 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   y_lim <- range(output_cost)
   boxplot(output_cost,las=2,ylim=y_lim,main=plot_tag)
   points(colMeans(output_cost),pch=8) # mean
-  points((1:3)+0.2,unlist(tail(output_sim_deterministic[names(output_cost)],1)),col=4,pch=8,lwd=3) # mean
+  points((1:3)+0.2,output_summary_deterministic[names(output_cost)],col=4,pch=8,lwd=3) # mean
+  
+  # plot activity vs health cost 
+  plot(output_summary$SocialActivityCost,
+       output_summary$HealthCost,
+       xlab='SocialActivityCost',
+       ylab='HealthCost',
+       main='health vs activity')
+  points(output_summary_deterministic$SocialActivityCost,
+         output_summary_deterministic$HealthCost,
+         col=4,pch=8,lwd=3) # mean
   
   # explore states
-  for(i_state in names(initial_state)){
+  sel_states <- names(initial_state)[!grepl('Total',names(initial_state))]
+  for(i_state in sel_states){
     y_lim <- range(0,output_all[,,i_state],na.rm = TRUE)
     plot(output_sim_deterministic[,i_state], col=1, main=i_state, ylab = i_state, xlab = 'time', ylim = y_lim, type='l', lwd=2) # infections, deterministic
     for(i_exp in 1:dim(output_all)[1]){

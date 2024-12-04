@@ -105,10 +105,10 @@ output_experiments <- run_experiments(initial_state = initial_state,
                                       num_experiments)
 
 # inspect all results
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom process',
+compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
                    bool_excl_fadeout = FALSE)
 
 # inspect results excl fade out
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom process',
+compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
                    bool_excl_fadeout = TRUE)
 
