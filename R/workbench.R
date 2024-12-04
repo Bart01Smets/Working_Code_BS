@@ -2,7 +2,6 @@
 # Workbench script for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic modelling
-# - stepwise increase of the model complexity until the binomail model
 #
 ######################################################### #
 
@@ -52,121 +51,31 @@ parameters$nifinal <- 10^-9
 parameters$tolerance <- 10^-6
 
 # Initial state variables including separate costs
-initial_state <- c(Ns = parameters$ns0, Ni = parameters$ni0, Nr = parameters$nr0, Nd = parameters$nd0, 
-                   Lambda_s = 0, Lambda_i = 0, HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
-                   a_t = NA, u_t = NA) # add a_t and u_t to keep track of this over time
+initial_state <- c(Ns = parameters$ns0, 
+                   Ni = parameters$ni0, 
+                   Nr = parameters$nr0, 
+                   Nd = parameters$nd0, 
+                   Lambda_s = 0, 
+                   Lambda_i = 0, 
+                   HealthCost = 0, 
+                   SocialActivityCost = 0, 
+                   TotalCost = 0,
+                   a_t = NA, 
+                   u_t = NA) # add a_t and u_t to keep track of this over time
 
 # Time sequence for pre-shock
-time_pre_shock <- seq(0, parameters$T1, by = 1)
+times <- seq(0, parameters$T1, by = 1)
 
-# Solve the model
-output_pre_shock <- ode(y = initial_state, times = time_pre_shock, func = sir_costate_model, parms = parameters)
-output_pre_shock_df <- as.data.frame(output_pre_shock)
-
-# Final Health Cost, Social Activity Cost, and Total Cost
-final_health_cost <- tail(output_pre_shock_df$HealthCost, 1)
-final_social_activity_cost <- tail(output_pre_shock_df$SocialActivityCost, 1)
-final_total_cost <- tail(output_pre_shock_df$TotalCost, 1)
-
-# Print final costs
-cat("*** ODE SOLVER *** ","\n")
-cat("Final Health Cost (per capita):", final_health_cost, "\n")
-cat("Final Social Activity Cost (per capita):", final_social_activity_cost, "\n")
-cat("Final Total Cost (per capita):", final_total_cost, "\n")
-
-# RUN DETERMINISTIC - FOR loop by day   ####
+# RUN STOCHASTIC BETA REALISATIONS  ####
 ########################################
-
-# Solve the model
-output_loop <- run_sir_costate_model(y = initial_state, times = time_pre_shock, func = sir_costate_model, parms = parameters)
-output_loop_df <- data.frame(output_loop)
-
-# Final Health Cost, Social Activity Cost, and Total Cost
-final_health_cost <- tail(output_loop_df$HealthCost, 1)
-final_social_activity_cost <- tail(output_loop_df$SocialActivityCost, 1)
-final_total_cost <- tail(output_loop_df$TotalCost, 1)
-
-# Print final costs
-cat("*** LOOP-BASED ODE *** ","\n")
-cat("Final Health Cost (per capita):", final_health_cost, "\n")
-cat("Final Social Activity Cost (per capita):", final_social_activity_cost, "\n")
-cat("Final Total Cost (per capita):", final_total_cost, "\n")
-
-# COMPARE ODE VS LOOP SOLVERS   ####
-########################################
-
-head(output_pre_shock)
-head(output_loop)
-
-par(mfrow=c(2,2)) # get 4 sub-panels
-plot(output_pre_shock_df$Ns,ylab='Ns')
-lines(output_loop$Ns,col=2)
-plot(output_pre_shock_df$Ns-output_loop$Ns,ylab='diff Ns')
-plot(output_pre_shock_df$Ni-output_loop$Ni,ylab='diff Ni')
-plot(output_pre_shock_df$TotalCost-output_loop$TotalCost,ylab='diff TotalCost')
-
-
-# ALTERNATIVE FOR LOOP-BASED SOLVER   ####
-########################################
-
-# call function
-output_sim <- run_sir_update(initial_state = initial_state, 
-                             times = time_pre_shock, 
-                             parameters = parameters)
-# Print final costs
-cat("*** USER-DEFINED *** ","\n")
-cat("Final Health Cost (per capita):", output_sim$HealthCost[nrow(output_sim)], "\n")
-cat("Final Social Activity Cost (per capita):", output_sim$SocialActivityCost[nrow(output_sim)], "\n")
-cat("Final Total Cost (per capita):", output_sim$TotalCost[nrow(output_sim)], "\n")
-
-
-# RUN MULTIPLE MODEL REALISATIONS   ####
-########################################
-
-# init result matrix
-output_experiments <- data.frame(matrix(NA,nrow=num_experiments,ncol=length(initial_state)))
-names(output_experiments) <- names(initial_state)
-dim(output_experiments)
-
-# run multiple model realisations and store results
-for(i_exp in 1:num_experiments){
-  
-  # get run-specific parameters
-  parameters_exp <- parameters
-  
-  # run model
-  output_sim <- run_sir_update(initial_state = initial_state, 
-                               times = time_pre_shock, 
-                               parameters = parameters_exp)
-  # store results
-  output_experiments[i_exp,] <- output_sim[nrow(output_sim),]
-}
-
-# inspect results
-output_experiments
-
-# Calculate  average of each column
-column_means <- colMeans(output_experiments)
-
-
-# Format the output as a data frame for a cleaner tabular display
-column_means_df <- data.frame(Column = names(column_means), Mean = column_means)
-
-# Print the formatted data frame
-print(column_means_df)
-
-# some graphical exploration
-par(mfrow=c(1,1)) # reset sub-panels
-boxplot(output_experiments$SocialActivityCost,main='SocialActivityCost')
-
-# RUN STOCHASTIC MODEL REALISATIONS   ####
-########################################
+# note: make sure the sampled beta is also used for a_t, u_t, Lambda_s and Lambda_i
 
 # get reference: deterministic model
-output_sim_deterministic <- run_sir_update(initial_state = initial_state, 
-                                       times = time_pre_shock, 
-                                       parameters = parameters,
-                                       infections_function = get_infections_determistic)
+output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
+                                           times = times, 
+                                           parameters = parameters,
+                                           bool_stochastic_beta = FALSE,
+                                           update_function = get_transitions_deterministic)
 # set random number generator seed
 set.seed(parameters$rng_seed)
 
@@ -179,34 +88,24 @@ dim(output_experiments)
 for(i_exp in 1:num_experiments){
   
   # run model
-  output_sim <- run_sir_update(initial_state = initial_state, 
-                               times = time_pre_shock, 
+  output_sim <- run_sir_binomial(initial_state = initial_state, 
+                               times = times, 
                                parameters = parameters,
-                               infections_function = get_infections_stochastic_beta)
+                               bool_stochastic_beta = TRUE,
+                               update_function = get_transitions_stochastic)
   # store results
   output_experiments[i_exp,] <- output_sim[nrow(output_sim),]
 }
 
 # inspect results
-compare_sim_output(output_sim, output_experiments, output_sim_deterministic, tag='stochastic beta')
-
-# Calculate  average of each column
-column_means <- colMeans(output_experiments)
-
-
-# Format the output as a data frame for a cleaner tabular display
-column_means_df <- data.frame(Column = names(column_means), Mean = column_means)
-
-# Print the formatted data frame
-print(column_means_df)
-
+compare_sim_output(output_sim, output_experiments, output_sim_deterministic, plot_tag='stochastic beta (new)')
 
 # RUN STOCHASTIC BINIOMIAL MODEL REALISATIONS   ####
 ####################################################
 
 # get reference: deterministic model
 output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
-                                            times = time_pre_shock, 
+                                            times = times, 
                                             parameters = parameters,
                                             update_function = get_transitions_deterministic)
 
@@ -223,7 +122,7 @@ for(i_exp in 1:num_experiments){
   
   # run model
   output_sim <- run_sir_binomial(initial_state = initial_state, 
-                                 times = time_pre_shock, 
+                                 times = times, 
                                  parameters = parameters,
                                  update_function = get_transitions_stochastic)
   # store results
@@ -231,6 +130,6 @@ for(i_exp in 1:num_experiments){
 }
 
 # inspect results
-compare_sim_output(output_sim, output_experiments, output_sim_deterministic, tag='binomial process')
+compare_sim_output(output_sim, output_experiments, output_sim_deterministic, plot_tag='binomial process')
 
 
