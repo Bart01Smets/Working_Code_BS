@@ -73,29 +73,20 @@ output_sim_deterministic <- run_sir_binomial(initial_state = initial_state,
                                            parameters = parameters,
                                            bool_stochastic_beta = FALSE,
                                            update_function = get_transitions_deterministic)
-# set random number generator seed
-set.seed(parameters$rng_seed)
 
-# init result matrix
-output_experiments <- data.frame(matrix(NA,nrow=num_experiments,ncol=length(initial_state)))
-names(output_experiments) <- names(initial_state)
-dim(output_experiments)
-
-# run multiple model realisations and store results
-for(i_exp in 1:num_experiments){
-  
-  # run model
-  output_sim <- run_sir_binomial(initial_state = initial_state, 
-                               times = times, 
-                               parameters = parameters,
-                               bool_stochastic_beta = TRUE,
-                               update_function = get_transitions_deterministic)
-  # store results
-  output_experiments[i_exp,] <- output_sim[nrow(output_sim),]
-}
+output_experiments <- run_experiments(initial_state = initial_state, 
+                                      times = times, 
+                                      parameters = parameters, 
+                                      bool_stochastic_beta = TRUE, 
+                                      update_function = get_transitions_deterministic, 
+                                      num_experiments)
 
 # inspect results
-compare_sim_output(output_sim, output_experiments, output_sim_deterministic, plot_tag='stochastic beta (new)')
+compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='stoch beta',
+                   bool_excl_fadeout = FALSE)
+
+compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='stoch beta',
+                   bool_excl_fadeout = TRUE)
 
 # RUN STOCHASTIC BINIOMIAL MODEL REALISATIONS   ####
 ####################################################
@@ -106,27 +97,18 @@ output_sim_deterministic <- run_sir_binomial(initial_state = initial_state,
                                             parameters = parameters,
                                             update_function = get_transitions_deterministic)
 
-# set random number generator seed
-set.seed(parameters$rng_seed)
+output_experiments <- run_experiments(initial_state = initial_state, 
+                                      times = times, 
+                                      parameters = parameters, 
+                                      bool_stochastic_beta = FALSE, 
+                                      update_function = get_transitions_stochastic, 
+                                      num_experiments)
 
-# init result matrix
-output_experiments <- data.frame(matrix(NA,nrow=num_experiments,ncol=length(initial_state)))
-names(output_experiments) <- names(initial_state)
-dim(output_experiments)
+# inspect all results
+compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom process',
+                   bool_excl_fadeout = FALSE)
 
-# run multiple model realisations and store results
-for(i_exp in 1:num_experiments){
-  
-  # run model
-  output_sim <- run_sir_binomial(initial_state = initial_state, 
-                                 times = times, 
-                                 parameters = parameters,
-                                 update_function = get_transitions_stochastic)
-  # store results
-  output_experiments[i_exp,] <- output_sim[nrow(output_sim),]
-}
-
-# inspect results
-compare_sim_output(output_sim, output_experiments, output_sim_deterministic, plot_tag='binomial process')
-
+# inspect results excl fade out
+compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom process',
+                   bool_excl_fadeout = TRUE)
 

@@ -5,6 +5,7 @@
 ################################################################ #
 
 library(confintr)
+library(scales)
 
 # Function to calculate the optimal action (a_t)
 a_function <- function(alpha, beta, Ns, Ni, Lambda_s, Lambda_i, utility_type, tolerance) {
@@ -150,48 +151,91 @@ get_mean_ci_text <- function(vect){
 }
 
 # function to compare stochastic and deterministic output
-compare_sim_output <- function(output_sim, output_experiments, output_deterministic, plot_tag){
+compare_sim_output <- function(output_experiments, output_deterministic, 
+                               plot_tag, bool_excl_fadeout = FALSE){
+  
+  # split output
+  output_summary <- output_experiments$output_summary
+  output_all     <- output_experiments$output_all
   
   # identify simulations with stochastic fade out 
-  output_experiments$bool_fade_out <- output_experiments$Ni == 0
-  
-  # some graphical exploration
-  par(mfrow=c(2,2)) # reset sub-panels
-  boxplot(output_experiments$SocialActivityCost, ylab='SocialActivityCost', main=paste(plot_tag,'(all)'))
-  points(1,mean(output_experiments$SocialActivityCost),pch=8) # mean
-  abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
-  text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
-       labels=('deterministic'), pos=3,col=4)
-  
-  # some graphical exploration (excl stochastic fade out)
-  boxplot(output_experiments$SocialActivityCost[!output_experiments$bool_fade_out], ylab='SocialActivityCost', main=paste(plot_tag,'(excl fadeout)'))
-  points(1,mean(output_experiments$SocialActivityCost[!output_experiments$bool_fade_out]),pch=8) # mean
-  abline(h=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],col=4)
-  text(x=0.6,y=output_sim_deterministic$SocialActivityCost[nrow(output_sim_deterministic)],
-       labels=('deterministic'), pos=3,col=4)
-  
-  # explore last simulation: infections
-  plot(output_sim$Ni,col=2,main='Infections',type='l',lwd=2) # infections, stochastic
-  lines(output_sim_deterministic$Ni,col=1) # infections, stochastic
-  
-  # explore last simulation: all health states
-  plot(output_sim$Ns,main='Health states',ylim=c(0,parameters$pop_size),type='l')
-  lines(output_sim$Ni,col=2)
-  lines(output_sim$Nr,col=3)
-  lines(output_sim$Nd,col=4)
-  legend('topright',
-         c('Ns','Ni','Nr','Nd'),
-         col = 1:4,
-         lwd = 2,
-         ncol = 4,
-         cex=0.5)
-  
-  # Print final stats
-  print(paste('SUMMARY STATISTICS:',plot_tag))
-  print(data.frame(output=c('Health Cost (per capita)','Social Activity Cost (per capita)','Total Cost (per capita)'),
-             determ=get_summary_stats(output_sim_deterministic[nrow(output_sim_deterministic),]),
-             stochastic_all = get_summary_stats(output_experiments),
-             stochstic_select = get_summary_stats(output_experiments[!output_experiments$bool_fade_out,])))
-  
+  if(bool_excl_fadeout){
+    exp_fade_out <- output_summary$Ni == 0
+    output_summary <- output_summary[!exp_fade_out,]
+    output_all <- output_all[!exp_fade_out,,]
+    plot_tag <- paste(plot_tag,'(excl. fadeout)')
+  } else {
+    plot_tag <- paste(plot_tag,'(all)')
   }
+  
+  # set figure sub panels
+  par(mfrow=c(3,4))
+  
+  # explore costs
+  output_cost <- output_summary[,grepl('Cost',names(output_summary))]
+  y_lim <- range(output_cost)
+  boxplot(output_cost,las=2,ylim=y_lim,main=plot_tag)
+  points(colMeans(output_cost),pch=8) # mean
+  points((1:3)+0.2,unlist(tail(output_sim_deterministic[names(output_cost)],1)),col=4,pch=8,lwd=3) # mean
+  
+  # explore states
+  for(i_state in names(initial_state)){
+    y_lim <- range(0,output_all[,,i_state],na.rm = TRUE)
+    plot(output_sim_deterministic[,i_state], col=1, main=i_state, ylab = i_state, xlab = 'time', ylim = y_lim, type='l', lwd=2) # infections, deterministic
+    for(i_exp in 1:dim(output_all)[1]){
+      output_sim <- data.frame(output_all[i_exp,,i_state])
+      lines(output_sim,col=alpha(2,0.3)) # infections, stochastic
+    }
+    lines(output_sim_deterministic[,i_state],col=1,lwd=2) # add line again
+  }
+ 
+  # prepare summary statistics
+  print_out <- data.frame(output=c('Health Cost (per capita)','Social Activity Cost (per capita)','Total Cost (per capita)'),
+                          deterministic = get_summary_stats(output_sim_deterministic[nrow(output_sim_deterministic),]),
+                          stochastic = get_summary_stats(output_summary))
+  names(print_out)[1] <- plot_tag
+  
+  # print summary statistics to console
+  print(paste('SUMMARY STATISTICS:',plot_tag))
+  print(print_out)
+  
+} # end function
+
+
+
+# to run multiple model realisations
+run_experiments <- function(initial_state, times, parameters, 
+                            bool_stochastic_beta, update_function, 
+                            num_experiments){
+  
+  # set random number generator seed
+  set.seed(parameters$rng_seed)
+  
+  # init result matrix
+  output_summary <- data.frame(matrix(NA,nrow=num_experiments,ncol=length(initial_state)))
+  names(output_summary) <- names(initial_state)
+  dim(output_summary)
+  
+  # init array to capture all results
+  output_all <- array(NA,dim=c(num_experiments,length(times),length(initial_state)),dimnames=list(NULL,NULL,names(initial_state)))
+  dim(output_all)
+  
+  # run multiple model realisations and store results
+  for(i_exp in 1:num_experiments){
+    
+    # run model
+    output_sim <- run_sir_binomial(initial_state = initial_state, 
+                                   times = times, 
+                                   parameters = parameters,
+                                   bool_stochastic_beta = bool_stochastic_beta,
+                                   update_function = update_function)
+    # store results
+    output_summary[i_exp,] <- output_sim[nrow(output_sim),]
+    output_all[i_exp,,] <- as.matrix(output_sim)
+  }
+  
+  return(list(output_summary=output_summary,
+              output_all=output_all))
+}
+
 
