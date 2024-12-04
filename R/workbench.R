@@ -92,7 +92,7 @@ for(i_exp in 1:num_experiments){
                                times = times, 
                                parameters = parameters,
                                bool_stochastic_beta = TRUE,
-                               update_function = get_transitions_stochastic)
+                               update_function = get_transitions_deterministic)
   # store results
   output_experiments[i_exp,] <- output_sim[nrow(output_sim),]
 }
