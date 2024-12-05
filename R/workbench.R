@@ -43,8 +43,10 @@ num_experiments <- 100
 # define fadeout threshold
 fadeout_threshold = 100
 
-# define default plot_tag (for development)
+# define default parameters (for development)
 plot_tag <- 'dev'
+bool_stochastic_beta <- FALSE
+update_function <- get_transitions_stochastic
 
 # RUN DETERMINISTIC - ODE solver   ####
 ########################################
@@ -113,4 +115,45 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 # inspect results excl fadeout
 compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
                    fadeout_threshold = fadeout_threshold)
+
+
+# RUN MODEL CHECK   ####
+####################################################
+
+# load reference input and output
+parameters <- readRDS('test/parameters.rds')
+initial_state <- readRDS('test/initial_state.rds')
+num_experiments <- 4
+output_reference <- readRDS('test/output_test.rds')
+
+# run stochastic experiments
+output_test <- run_experiments(initial_state = initial_state, 
+                               times = times, 
+                               parameters = parameters, 
+                               bool_stochastic_beta = FALSE, 
+                               update_function = get_transitions_stochastic, 
+                               num_experiments)
+# compare each element
+bool_output_unchanged <- TRUE
+for(i_out in 1:length(output_test)){
+  output_name <- names(output_test)[i_out]
+  if(any(dim(output_test[[i_out]]) != dim(output_reference[[i_out]])) |
+     any(output_test[[i_out]] != output_reference[[i_out]],na.rm=TRUE)){
+    # print warning
+    warning(paste0('Model output "',output_name,'" changed'))
+    bool_output_unchanged <- FALSE
+  } 
+}
+# print statement if output did not change
+if(bool_output_unchanged){
+  print('MODEL OUTPUT DID NOT CHANGE')
+}
+
+# function to update test input/output
+update_reference_values <- function(){
+  saveRDS(parameters,'test/parameters.rds')
+  saveRDS(initial_state,'test/initial_state.rds')
+  saveRDS(output_test,'test/output_test.rds')
+}
+# update_reference_values()
 
