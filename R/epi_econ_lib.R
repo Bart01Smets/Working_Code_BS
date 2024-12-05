@@ -59,13 +59,25 @@ run_sir_binomial <- function(initial_state,
   states[grepl('Ns',names(states))] <- parameters$pop_size - sum(states[grepl('N.',names(states)) & !grepl('Ns',names(states))])
   
   # set summary data.table
-  states_out        <- data.frame(matrix(NA, nrow=length(times), ncol=length(states)))
-  names(states_out) <- names(states)
+  states_out        <- matrix(NA, nrow=length(times), ncol=length(states))
+  colnames(states_out) <- names(states)
   dim(states_out)
   
-  # start with initial states
-  states_out[1,]    <- states
-  dim(states_out)
+  # start with initial states.  
+  # note: use single values as parameter is much faster in the iterative process
+  names(states)
+  Ns <- states$Ns
+  Ni <- states$Ni
+  Nr <- states$Nr
+  Nd <- states$Nd
+  Lambda_s <- 0
+  Lambda_i <- 0
+  HealthCost <- 0
+  SocialActivityCost <- 0
+
+  # compute some results only once
+  fx_per_capita <- parameters$fx / parameters$pop_size
+  rho_plus_delta <- parameters$rho + parameters$delta
   
   # run over times (excl the first one)
   for(i_day in times[-1]){
@@ -79,16 +91,16 @@ run_sir_binomial <- function(initial_state,
     
     # Calculate optimal action based on utility type
     a_t <- a_function(parameters$alpha, beta_t, 
-                      states$Ns/parameters$pop_size, states$Ni/parameters$pop_size, 
-                      states$Lambda_s, states$Lambda_i, 
+                      Ns/parameters$pop_size, Ni/parameters$pop_size, 
+                      Lambda_s, Lambda_i, 
                       parameters$utility_type, parameters$tolerance)
     
     # Calculate utility of action
     u_t <- utility_function(a_t, parameters$utility_type)
     
     # Calculate transitions
-    new_infections <- update_function(states$Ns, prob = beta_t * a_t^2 * states$Ni/parameters$pop_size)
-    new_recoveries <- update_function(states$Ni, prob = parameters$gamma)
+    new_infections <- update_function(Ns, prob = beta_t * a_t^2 * Ni/parameters$pop_size)
+    new_recoveries <- update_function(Ni, prob = parameters$gamma)
     new_death      <- update_function(new_recoveries, prob = parameters$pi)
     
     # get health transitions
@@ -98,34 +110,35 @@ run_sir_binomial <- function(initial_state,
     dNd <- new_death
     
     # calculate change in lambda 
-    dLambda_s <- (parameters$rho + parameters$delta) * states$Lambda_s - 
-      (u_t + (states$Lambda_i - states$Lambda_s) *  beta_t * a_t^2 * states$Ni/parameters$pop_size)
-    dLambda_i <- (parameters$rho + parameters$delta) * states$Lambda_i - 
-      (u_t + parameters$alpha * (states$Lambda_i - states$Lambda_s) *  beta_t * a_t^2 * states$Ns/parameters$pop_size) - 
-      parameters$gamma * (parameters$kappa + states$Lambda_i)
+    dLambda_s <- rho_plus_delta * Lambda_s - 
+      (u_t + (Lambda_i - Lambda_s) *  beta_t * a_t^2 * Ni/parameters$pop_size)
+    dLambda_i <- rho_plus_delta * Lambda_i - 
+      (u_t + parameters$alpha * (Lambda_i - Lambda_s) *  beta_t * a_t^2 * Ns/parameters$pop_size) - 
+      parameters$gamma * (parameters$kappa + Lambda_i)
     
     # get current costs (per capita)
-    states$HealthCost <- states$HealthCost + (parameters$fx / (states$Ns + states$Ni + states$Nr + states$Nd)) * exp(-(parameters$rho + parameters$delta) * i_day) * parameters$gamma * parameters$kappa * states$Ni
-    states$SocialActivityCost <- states$SocialActivityCost + (parameters$fx / (states$Ns + states$Ni + states$Nr + states$Nd)) * exp(-(parameters$rho + parameters$delta) * i_day) * (states$Ns + states$Ni) * abs(u_t)
-    states$TotalCost <- states$HealthCost + states$SocialActivityCost
-    
+    HealthCost <- HealthCost + fx_per_capita * exp(-rho_plus_delta * i_day) * parameters$gamma * parameters$kappa * Ni
+    SocialActivityCost <- SocialActivityCost + fx_per_capita * exp(-rho_plus_delta * i_day) * (Ns + Ni) * abs(u_t)
+
     # Update states
     # note: this needs to be done at the end, otherwise it affects the Lambda calculation
-    states$Ns <- states$Ns + dNs
-    states$Ni <- states$Ni + dNi
-    states$Nr <- states$Nr + dNr
-    states$Nd <- states$Nd + dNd
-    states$Lambda_s <- states$Lambda_s + dLambda_s
-    states$Lambda_i <- states$Lambda_i + dLambda_i
-    
-    states$a_t <- a_t
-    states$u_t <- u_t
+    Ns <- Ns + dNs
+    Ni <- Ni + dNi
+    Nr <- Nr + dNr
+    Nd <- Nd + dNd
+    Lambda_s <- Lambda_s + dLambda_s
+    Lambda_i <- Lambda_i + dLambda_i
     
     # keep track of the states
-    states_out[i_day+1,] = states
+    states_out[i_day+1,] = c(Ns, Ni, Nr, Nd,
+                             Lambda_s, Lambda_i,
+                             HealthCost, SocialActivityCost, 
+                             HealthCost + SocialActivityCost,
+                             a_t, u_t)
   }
   
-  return(states_out)
+  # return as data.frame
+  return(data.frame(states_out))
 }
 
 
