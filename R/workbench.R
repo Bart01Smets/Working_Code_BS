@@ -4,7 +4,8 @@
 # - Deterministic and stochastic modelling
 #
 ######################################################### #
-
+getwd()
+setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 # clear workbench
 rm(list=ls())
 
@@ -23,22 +24,25 @@ parameters <- list(
   pi = 0.0062,             # Infection fatality rate (π)
   sigma = 0.15,            # Determines stochastic beta_t =  N(beta,sigma)
   kappa = 197,             # Expected cost of infection (κ)
-  ni0 = 0.0000527,         # Initial infected population (Ni0)
-  ns0 = 1 - 0.0000527,     # Initial susceptible population (Ns0)
+  ni0 = 0.000527,         # Initial infected population (Ni0)
+  ns0 = 1 - 0.000527,     # Initial susceptible population (Ns0)
   nr0 = 0,                 # Initial recovered population (Nr0)
   nd0 = 0,                 # Initial dead population (Nd0)
   alpha = 0,               # Altruism parameter (default set to no altruism)
   fx = 123,                # Exchange rate multiplier for USD conversion
   time_horizon = 500,      # Time of shock
   utility_type = "Log",    # Utility type: "Log" or "Quadratic"
-  rng_seed = 123
+  rng_seed = 123,
+  scenario = "laissez-faire",
+  R0= (3/10+1/7)/(1/7),
+  infect_thres = 1
 )
 
 # define population size
 parameters$pop_size <- 1e4
 
 # define number of stochastic runs
-num_experiments <- 100
+num_experiments <- 10
 
 # define fadeout threshold
 fadeout_threshold = 100
@@ -60,13 +64,14 @@ initial_state <- c(Ns = parameters$ns0,
                    Ni = parameters$ni0, 
                    Nr = parameters$nr0, 
                    Nd = parameters$nd0, 
-                   Lambda_s = 0, 
-                   Lambda_i = 0, 
+                   lambda_s = 0, 
+                   lambda_i = 0, 
                    HealthCost = 0, 
                    SocialActivityCost = 0, 
                    TotalCost = 0,
                    a_t = NA, 
-                   u_t = NA) # add a_t and u_t to keep track of this over time
+                   u_t = NA, 
+                   Rt= NA) # add a_t and u_t to keep track of this over time
 
 # Time sequence for pre-shock
 times <- seq(0, parameters$time_horizon, by = 1)
@@ -77,10 +82,13 @@ times <- seq(0, parameters$time_horizon, by = 1)
 
 # get reference: deterministic model
 output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
-                                           times = times, 
-                                           parameters = parameters,
-                                           bool_stochastic_beta = FALSE,
-                                           update_function = get_transitions_deterministic)
+                                             times = times, 
+                                             parameters = parameters,
+                                             bool_stochastic_beta = FALSE,
+                                             update_function = get_transitions_deterministic)
+# Compute and Track Effective Reproduction Number R(t)
+
+
 
 output_experiments <- run_experiments(initial_state = initial_state, 
                                       times = times, 
@@ -98,9 +106,9 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='stoch
 
 # get reference: deterministic model
 output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
-                                            times = times, 
-                                            parameters = parameters,
-                                            update_function = get_transitions_deterministic)
+                                             times = times, 
+                                             parameters = parameters,
+                                             update_function = get_transitions_deterministic)
 
 output_experiments <- run_experiments(initial_state = initial_state, 
                                       times = times, 
@@ -122,6 +130,8 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 
 # load reference input and output
 parameters <- readRDS('test/parameters.rds')
+parameters$scenario <- "laissez-faire"
+parameters$infect_thres = 0
 initial_state <- readRDS('test/initial_state.rds')
 num_experiments <- 4
 output_reference <- readRDS('test/output_test.rds')
@@ -156,4 +166,3 @@ update_reference_values <- function(){
   saveRDS(output_test,'test/output_test.rds')
 }
 # update_reference_values()
-

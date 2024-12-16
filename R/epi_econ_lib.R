@@ -1,23 +1,38 @@
+
 #
 # Help function for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic transitions
 ################################################################ #
-
+#setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS/R")
 library(confintr)
 library(scales)
 
 # Function to calculate the optimal action (a_t)
-a_function <- function(alpha, beta, Ns, Ni, Lambda_s, Lambda_i, utility_type, tolerance) {
-  denom <- max(abs(Lambda_s - Lambda_i), tolerance)  # Avoid division by zero
+a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, scenario, tolerance) {
+  denom <- max(abs(lambda_s - lambda_i), tolerance)  # Avoid division by zero#Lambda_s -Lambda_i
   
   if(Ni == 0){
     return(1)
   }
+
+  # if (utility_type == "Log") {
+  #  sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
+  # return((- (Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))
+  
+  #if  #sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
+  #return( (-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom) )
   
   if (utility_type == "Log") {
-    sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
-    return( (-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom) )
+    if (scenario == "laissez-faire") {
+      sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
+      return((-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom))
+    } else if (scenario == "optimal-policy") {
+      sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
+      return((-(Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))
+    }
+    
+    
   } else if (utility_type == "Quadratic") {
     return( (Ns + Ni) / (Ns + Ni + (1 + alpha) * beta * Ni * Ns * denom) )
   }
@@ -32,14 +47,33 @@ utility_function <- function(a_t, utility_type) {
   }
 }
 
+calculate_Rt <- function(R0, a_t, Ns_prop) {
+  return(R0 * a_t^2 * Ns_prop)
+}
+
 # calculate the number of infections or recoveries
 get_transitions_stochastic <- function(n, prob){
   return(sum(rbinom(n = n,size = 1, prob = prob)))
 }
 
-get_transitions_deterministic <- function(n, prob){
-  return(n * prob)
+get_transitions_deterministic_farboodi <- function(n, prob){
+  transitions <- (n * prob)
+ # if (transitions < 0.5) {
+  #  return(0)
+#  } else {
+    return(transitions)
+ # }
 }
+
+get_transitions_deterministic <- function(n, prob){
+  transitions <- (n * prob)
+  # if ((n - transitions) < 1) {
+   #  transitions = n
+  #  } 
+  return(transitions)
+}
+
+
 
 # to run the SIRD kernel with a for loop and binomial transistions
 #y = initial_state; times = time_pre_shock; func = sir_costate_model; parms = parameters
@@ -70,11 +104,13 @@ run_sir_binomial <- function(initial_state,
   Ni <- states$Ni
   Nr <- states$Nr
   Nd <- states$Nd
-  Lambda_s <- 0
-  Lambda_i <- 0
+  lambda_s <- 0
+  lambda_i <- 0
   HealthCost <- 0
   SocialActivityCost <- 0
-
+  
+  
+  
   # compute some results only once
   fx_per_capita <- parameters$fx / parameters$pop_size
   rho_plus_delta <- parameters$rho + parameters$delta
@@ -92,8 +128,8 @@ run_sir_binomial <- function(initial_state,
     # Calculate optimal action based on utility type
     a_t <- a_function(parameters$alpha, beta_t, 
                       Ns/parameters$pop_size, Ni/parameters$pop_size, 
-                      Lambda_s, Lambda_i, 
-                      parameters$utility_type, parameters$tolerance)
+                      lambda_s, lambda_i, 
+                      parameters$utility_type, parameters$scenario, parameters$tolerance)#Lambda_s, Lambda_i
     
     # Calculate utility of action
     u_t <- utility_function(a_t, parameters$utility_type)
@@ -103,6 +139,11 @@ run_sir_binomial <- function(initial_state,
     new_recoveries <- update_function(Ni, prob = parameters$gamma)
     new_death      <- update_function(new_recoveries, prob = parameters$pi)
     
+    if((Ni - new_recoveries) < parameters$infect_thres){
+      new_recoveries = Ni
+      new_infections = 0
+    }
+    
     # get health transitions
     dNs <- -new_infections
     dNi <- new_infections - new_recoveries
@@ -110,36 +151,84 @@ run_sir_binomial <- function(initial_state,
     dNd <- new_death
     
     # calculate change in lambda 
-    dLambda_s <- rho_plus_delta * Lambda_s - 
-      (u_t + (Lambda_i - Lambda_s) *  beta_t * a_t^2 * Ni/parameters$pop_size)
-    dLambda_i <- rho_plus_delta * Lambda_i - 
-      (u_t + parameters$alpha * (Lambda_i - Lambda_s) *  beta_t * a_t^2 * Ns/parameters$pop_size) - 
-      parameters$gamma * (parameters$kappa + Lambda_i)
+    #  dLambda_s <- rho_plus_delta * Lambda_s - 
+    #   (u_t + (Lambda_i - Lambda_s) *  beta_t * a_t^2 * Ni/parameters$pop_size)
+    # dLambda_i <- rho_plus_delta * Lambda_i - 
+    #  (u_t + parameters$alpha * (Lambda_i - Lambda_s) *  beta_t * a_t^2 * Ns/parameters$pop_size) - 
+    #  parameters$gamma * (parameters$kappa + Lambda_i)
+    
+    
+    # Derivative of mu_s 
+    #  d_mu_s <- rho_plus_delta * mu_s - u_t - (mu_i - mu_s) * beta_t * a_t^2 * Ni/parameters$pop_size
+    #  R0 <- parameters$beta / parameters$gamma
+    
+    # Function to calculate R(t)
+    #  calculate_Rt <- function(R0, a_t, Ns) {
+    #    return(R0 * a_t^2 * Ns)
+    # }
+    # Derivative of mu_i 
+    # d_mu_i <- rho_plus_delta * mu_i - u_t - (mu_i - mu_s) * beta_t * a_t^2 * Ns/parameters$pop_size + parameters$gamma * (parameters$kappa + mu_i)
+    if (parameters$scenario == "laissez-faire") {
+      d_lambda_s <- rho_plus_delta * lambda_s - 
+        (u_t + (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size)
+      d_lambda_i <- rho_plus_delta * lambda_i - 
+        (u_t + parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size) - 
+        parameters$gamma * (parameters$kappa + lambda_i)
+      
+      #d_lambda_s <- rho_plus_delta * lambda_s - 
+      #  u_t - (1 + parameters$alpha) * (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
+      #d_lambda_i <- rho_plus_delta * lambda_i - 
+      #  u_t - (1 + parameters$alpha) * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
+     #   parameters$gamma * (parameters$kappa + lambda_i)
+      
+      # Corrected equation for d_lambda_s
+   #   d_lambda_s <- rho_plus_delta * lambda_s - 
+  #      u_t - parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
+      
+      # Corrected equation for d_lambda_i
+   #   d_lambda_i <- rho_plus_delta * lambda_i - 
+    #    u_t - parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
+     #   parameters$gamma * (parameters$kappa + lambda_i)
+      
+      
+    } else if (parameters$scenario == "optimal-policy") {
+      d_lambda_s <- rho_plus_delta * lambda_s - 
+        u_t - (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
+      d_lambda_i <- rho_plus_delta * lambda_i - 
+        u_t - (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
+        parameters$gamma * (parameters$kappa + lambda_i)
+    }
+    
     
     # get current costs (per capita)
     HealthCost <- HealthCost + fx_per_capita * exp(-rho_plus_delta * i_day) * parameters$gamma * parameters$kappa * Ni
     SocialActivityCost <- SocialActivityCost + fx_per_capita * exp(-rho_plus_delta * i_day) * (Ns + Ni) * abs(u_t)
-
+    
+    Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size) 
+    
+    
     # Update states
     # note: this needs to be done at the end, otherwise it affects the Lambda calculation
     Ns <- Ns + dNs
     Ni <- Ni + dNi
     Nr <- Nr + dNr
     Nd <- Nd + dNd
-    Lambda_s <- Lambda_s + dLambda_s
-    Lambda_i <- Lambda_i + dLambda_i
-    
+    #  Lambda_s <- Lambda_s + dLambda_s
+    #  Lambda_i <- Lambda_i + dLambda_i
+    lambda_s <- lambda_s+d_lambda_s
+    lambda_i <- lambda_i+d_lambda_i
     # keep track of the states
     states_out[i_day+1,] = c(Ns, Ni, Nr, Nd,
-                             Lambda_s, Lambda_i,
+                             lambda_s, lambda_i,
                              HealthCost, SocialActivityCost, 
                              HealthCost + SocialActivityCost,
-                             a_t, u_t)
+                             a_t, u_t, Rt)#Lambda_s, Lamba_i
   }
   
   # return as data.frame
   return(data.frame(states_out))
 }
+
 
 
 # get a vector with the economic summary stats
@@ -183,6 +272,11 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   } else {
     plot_tag <- paste(plot_tag,'(all)')
   }
+  # Plot R(t) in place of lambda_s
+  #plot(times, R_t, type = "l", col = "blue", lwd = 2,
+  #    xlab = "Time (days)", ylab = "Effective Reproduction Number R(t)",
+  #    main = "Effective Reproduction Number Over Time")
+  #abline(h = 1, col = "red", lty = 2)  # Threshold of R(t) = 1
   
   # set figure sub panels
   par(mfrow=c(3,4))
@@ -204,8 +298,10 @@ compare_sim_output <- function(output_experiments, output_deterministic,
          output_summary_deterministic$HealthCost,
          col=4,pch=8,lwd=3) # mean
   
+  
+  
   # explore states
-  sel_states <- names(initial_state)[!grepl('Total',names(initial_state))]
+  sel_states <- names(initial_state)[!grepl('Total',names(initial_state)) & !grepl('Ns',names(initial_state))]
   for(i_state in sel_states){
     y_lim <- range(0,output_all[,,i_state],output_sim_deterministic[,i_state],na.rm = TRUE)
     plot(output_sim_deterministic[,i_state], col=1, main=i_state, ylab = i_state, xlab = 'time', ylim = y_lim, type='l', lwd=2) # infections, deterministic
@@ -215,7 +311,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     }
     lines(output_sim_deterministic[,i_state],col=1,lwd=2) # add line again
   }
- 
+  
   # prepare summary statistics
   print_out <- data.frame(output=c('Health Cost (per capita)','Social Activity Cost (per capita)','Total Cost (per capita)'),
                           deterministic = get_summary_stats(output_sim_deterministic[nrow(output_sim_deterministic),]),
@@ -249,7 +345,7 @@ run_experiments <- function(initial_state, times, parameters,
   
   # run multiple model realisations and store results
   for(i_exp in 1:num_experiments){
-    
+    print(i_exp)
     # run model
     output_sim <- run_sir_binomial(initial_state = initial_state, 
                                    times = times, 
@@ -264,5 +360,3 @@ run_experiments <- function(initial_state, times, parameters,
   return(list(output_summary=output_summary,
               output_all=output_all))
 }
-
-
