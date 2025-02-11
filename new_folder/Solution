@@ -144,12 +144,24 @@ output_post_shock_df <- as.data.frame(output_post_shock)
 # Combine results of pre-shock and post-shock phases
 output_combined_df <- rbind(output_pre_shock_df, output_post_shock_df[-1, ])  # Remove overlapping initial state row
 
-# Final Health Cost, Social Activity Cost, and Total Cost
-final_health_cost <- tail(output_combined_df$HealthCost, 1)
-final_social_activity_cost <- tail(output_combined_df$SocialActivityCost, 1)
-final_total_cost <- tail(output_combined_df$TotalCost, 1)
+# Apply terminal conditions for costates
+Ns_T <- tail(output_combined_df$Ns, 1)
+Ni_T <- tail(output_combined_df$Ni, 1)
+Lambda_i_T <- tail(output_combined_df$Lambda_i, 1)
 
-# Print final costs
-cat("Final Health Cost (per capita):", final_health_cost, "\n")
-cat("Final Social Activity Cost (per capita):", final_social_activity_cost, "\n")
-cat("Final Total Cost (per capita):", final_total_cost, "\n")
+Lambda_s_T <- (parameters$beta * Lambda_i_T * Ni_T) / (parameters$rho + parameters$delta + parameters$beta * Ni_T)
+Lambda_i_T <- - (parameters$gamma * parameters$kappa * (parameters$delta + parameters$rho + parameters$beta * Ni_T)) /
+  (parameters$alpha * parameters$beta^2 * Ni_T * Ns_T + 
+  (parameters$delta + parameters$rho + parameters$beta * Ni_T) * 
+  (parameters$rho + parameters$delta + parameters$gamma - parameters$alpha * parameters$beta * Ns_T))
+
+# Append terminal conditions
+output_combined_df$Lambda_s[nrow(output_combined_df)] <- Lambda_s_T
+output_combined_df$Lambda_i[nrow(output_combined_df)] <- Lambda_i_T
+
+# Print final costs and costates
+cat("Final Lambda_s:", Lambda_s_T, "\n")
+cat("Final Lambda_i:", Lambda_i_T, "\n")
+cat("Final Health Cost (per capita):", tail(output_combined_df$HealthCost, 1), "\n")
+cat("Final Social Activity Cost (per capita):", tail(output_combined_df$SocialActivityCost, 1), "\n")
+cat("Final Total Cost (per capita):", tail(output_combined_df$TotalCost, 1), "\n")
