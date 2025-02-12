@@ -52,7 +52,7 @@ sir_costate_model <- function(time, state, parameters) {
     dNi <- beta * Ns * Ni - gamma * Ni
     
     # Corrected HealthCost equation
-    dHealthCost <- fx*(rho + delta) * HealthCost - gamma * kappa * Ni
+    dHealthCost <- (rho + delta) * HealthCost - gamma * kappa * Ni
 
     # Return rate of change for each state variable
     return(list(c(dNs, dNi, dHealthCost)))
