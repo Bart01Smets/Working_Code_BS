@@ -95,10 +95,10 @@ sir_costate_model <- function(time, state, parameters) {
     dLambda_i <- (rho + delta) * Lambda_i - (u_t + alpha * (Lambda_i - Lambda_s) * beta * a_t^2 * Ns) + gamma * (kappa + Lambda_i)
     
     # Instantaneous cost calculations (per capita)
-  #  dHealthCost <- fx * exp(-(rho + delta) * time) * gamma * kappa * (-Ni)
+  #  dHealthCost <- fx * exp(-(rho + delta) * time) * gamma * kappa * Ni
    # dSocialActivityCost <- fx * exp(-(rho + delta) * time) * (Ns + Ni) * (u_t) #abs
     
-    dHealthCost <- fx*((rho + delta) * HealthCost - gamma * kappa * (-Ni))
+    dHealthCost <- fx*((rho + delta) * HealthCost - gamma * kappa * Ni)
     dSocialActivityCost <- fx*((rho + delta) * SocialActivityCost + (Ns + Ni) * u_t)
     
     # Total cost is the sum of cumulative costs
