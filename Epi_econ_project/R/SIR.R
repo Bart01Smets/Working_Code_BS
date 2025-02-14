@@ -21,7 +21,6 @@ parameters <- list(
   ni0 = 0.0000527,         # Initial infected population (Ni0)
   ns0 = 0.9999223,         # Initial susceptible population (Ns0)  (Table 1, page 15)
   fx = 123                 # To convert utils to US dollars 
-  
 )
 
 # Basic reproduction number R0 = beta / gamma
@@ -79,5 +78,5 @@ total_discounted_health_cost <- tail(output_df$HealthCost, 1)
 
 # Print results
 cat("Total Discounted Health Cost:", total_discounted_health_cost, " (utils)\n")
-cat("Total Discounted Health Cost:", fx * total_discounted_health_cost, " (dollar)\n")
+cat("Total Discounted Health Cost:", parameters$fx * total_discounted_health_cost, " (dollar)\n")
 
