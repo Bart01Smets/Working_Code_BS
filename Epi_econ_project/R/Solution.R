@@ -30,7 +30,7 @@ parameters <- list(
   ns0 = 0.9999223,         # Initial susceptible population (Ns0)
   nr0 = 0.00002484,        # Initial recovered population (Nr0)
   nd0 = 0.000000156,       # Initial dead population (Nd0)
-  alpha = 1,               # Altruism parameter (1 means optimal policy)
+  alpha = 0,               # Altruism parameter (0 means optimal policy)
   fx = 123                 # Exchange rate multiplier for USD conversion
 )
 
@@ -39,10 +39,20 @@ nifinal <- 10^-9    # not used yet
 tolerance <- 10^-6  # not used yet
 
 # Optimal activity a(t) based on utility function
-a_function <- function(alpha, beta, ns, ni, Lambda_s, Lambda_i) {
-  #return(1)
-  return(0.60)
+a_function <- function(alpha, beta, ns, ni, lambda_s, lambda_i) {
+  diff_lambda <- lambda_s - lambda_i
+  sqrt_term <- ns + ni + 4 * (1 + alpha) * beta * ni * ns * diff_lambda
+
+  # defensive check
+  if (sqrt_term < 0 || diff_lambda == 0) {
+    return(1)  # Prevent complex values or division by zero
+  }
+
+  num <- -(ns + ni) + sqrt(ns + ni) * sqrt(sqrt_term)
+  denom <- 2 * (1 + alpha) * beta * ns * ni * diff_lambda
+  return(max(min(num / denom, 1), 0))  # Ensure activity remains between [0,1]
 }
+
 
 # Utility function
 # utility_type = "log"
@@ -122,7 +132,7 @@ initial_state <- c(Ns = parameters$ns0,
                    R_t = 0) 
 
 # Time sequence for pre-shock
-time_pre_shock <- seq(0, 610, by = 1)
+time_pre_shock <- seq(0, 730, by = 1)
 
 # Solve the model
 output_intervention <- ode(y = initial_state, 
