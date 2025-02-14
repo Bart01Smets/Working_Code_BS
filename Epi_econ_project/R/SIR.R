@@ -3,7 +3,9 @@
 #
 # - Reproduction of Farboodi et al (2021) code: "SIR"
 # - Disease dynamics without intervention
-# - Mathematica code shows Health Cost and Total Cost: 172.541
+# - Mathematica code shows Health Cost and Total Cost: 172.541 utils
+# - Manuscript shows Health Cost and Total Cost in dollars of $21,223
+
 #
 ######################################################### #
 
@@ -17,7 +19,9 @@ parameters <- list(
   rho = 0.05 / 365,        # Discounting rate (ρ)
   kappa = 197,             # Expected cost of infection (κ)
   ni0 = 0.0000527,         # Initial infected population (Ni0)
-  ns0 = 0.9999223          # Initial susceptible population (Ns0)  (Table 1, page 15)
+  ns0 = 0.9999223,         # Initial susceptible population (Ns0)  (Table 1, page 15)
+  fx = 123                 # To convert utils to US dollars 
+  
 )
 
 # Basic reproduction number R0 = beta / gamma
@@ -74,7 +78,6 @@ output_df <- as.data.frame(output)
 total_discounted_health_cost <- tail(output_df$HealthCost, 1)
 
 # Print results
-cat("Total Discounted Health Cost:", total_discounted_health_cost, "\n")
+cat("Total Discounted Health Cost:", total_discounted_health_cost, " (utils)\n")
+cat("Total Discounted Health Cost:", fx * total_discounted_health_cost, " (dollar)\n")
 
-# Print the last 10 values of Infected and HealthCost
-print(tail(output_df[, c("time", "Ni", "HealthCost")], 10))
