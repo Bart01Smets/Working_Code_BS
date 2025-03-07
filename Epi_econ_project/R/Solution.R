@@ -117,18 +117,22 @@ compute_terminal_conditions <- function(ns_T, ni_T, parameters) {
 Lambda_values <- compute_terminal_conditions(ns_T = parameters$ns0, ni_T = parameters$ni0, parameters = parameters)
 Lambda_values
 
+a_t0<-a_function(parameters$alpha, parameters$beta, parameters$ns0, parameters$ni0, -102.859, -194.343)
+u_t0<-utility_function(a_t2)
+
+
 # Initial state variables including separate costs
 initial_state <- c(Ns = parameters$ns0, 
                    Ni = parameters$ni0, 
                    Nr = parameters$nr0, 
                    Nd = parameters$nd0,
-                   Lambda_s = Lambda_values[1], 
-                   Lambda_i = Lambda_values[2], 
+                   Lambda_s = -102.859, #LF: -102.859, -194.343
+                   Lambda_i = -194.343, #OP: -165.651, -21985.5
                    HealthCost = 0, 
                    SocialActivityCost = 0, 
                    TotalCost = 0,
-                   a_t = 1, 
-                   u_t = 0,
+                   a_t = a_t0, 
+                   u_t = u_t0,
                    R_t = 0) 
 
 # Time sequence for pre-shock
@@ -140,6 +144,16 @@ output_intervention <- ode(y = initial_state,
                            func  = sir_costate_model, 
                            parms = parameters)
 output_intervention_df <- as.data.frame(output_intervention)
+
+
+print(output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lambda_s", "Lambda_i")])
+library(writexl)
+
+# Prepare the data frame with variables that regulate systeù: time, Ns, Ni, activity (a_t), utility (u_t), Lambda_s, and Lambda_i
+export_data <- output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lambda_s", "Lambda_i")]
+
+# Export the data frame to an Excel file
+write_xlsx(export_data, "SIR_OutputLF.xlsx") #or OP
 
 # account for incremental results
 output_intervention_df$a_t <- c(output_intervention_df$a_t[1],diff(output_intervention_df$a_t))
