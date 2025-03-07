@@ -146,6 +146,16 @@ output_intervention <- ode(y = initial_state,
 output_intervention_df <- as.data.frame(output_intervention)
 
 
+
+# account for incremental results
+output_intervention_df$a_t <- c(output_intervention_df$a_t[1],diff(output_intervention_df$a_t))
+output_intervention_df$u_t <- c(output_intervention_df$u_t[1],diff(output_intervention_df$u_t))
+output_intervention_df$R_t <- c(output_intervention_df$R_t[1],diff(output_intervention_df$R_t))
+
+# get fit of initial state, but re-use the second one provided
+output_intervention_df[1,c('a_t','u_t','R_t')] <- output_intervention_df[2,c('a_t','u_t','R_t')]
+
+
 print(output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lambda_s", "Lambda_i")])
 library(writexl)
 
@@ -155,13 +165,6 @@ export_data <- output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lam
 # Export the data frame to an Excel file
 write_xlsx(export_data, "SIR_OutputLF.xlsx") #or OP
 
-# account for incremental results
-output_intervention_df$a_t <- c(output_intervention_df$a_t[1],diff(output_intervention_df$a_t))
-output_intervention_df$u_t <- c(output_intervention_df$u_t[1],diff(output_intervention_df$u_t))
-output_intervention_df$R_t <- c(output_intervention_df$R_t[1],diff(output_intervention_df$R_t))
-
-# get fit of initial state, but re-use the second one provided
-output_intervention_df[1,c('a_t','u_t','R_t')] <- output_intervention_df[2,c('a_t','u_t','R_t')]
 
 # Main SIR plot
 p1 <- ggplot(output_intervention_df, aes(x = time)) +
