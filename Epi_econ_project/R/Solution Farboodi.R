@@ -191,7 +191,7 @@ library(writexl)
 # Prepare the data frame with key variables: time, Ns, Ni, activity (a_t), utility (u_t), Lambda_s, and Lambda_i
 export_data <- output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lambda_s", "Lambda_i")]
 # Define the file path
-file_path <- "C:/Users/Bart Smets/OneDrive/Documenten/GitHub/github map/SIR_OutputLF.xlsx"
+file_path <- "R_SIR_OutputLF.xlsx"
 # Export the data frame to an Excel file
 write_xlsx(export_data, file_path)
 print(export_data)
