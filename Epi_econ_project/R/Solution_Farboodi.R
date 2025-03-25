@@ -11,12 +11,11 @@
 ######################################################### #
 
 rm(list=ls())
+
 library(ggplot2)
 library(deSolve)
-
-# Plot results
-library(ggplot2)
 library(gridExtra)
+library(writexl)
 
 # Parameters
 parameters <- list(
@@ -30,7 +29,7 @@ parameters <- list(
   ns0 = 0.9999223,         # Initial susceptible population (Ns0)
   nr0 = 0.00002484,        # Initial recovered population (Nr0)
   nd0 = 0.000000156,       # Initial dead population (Nd0)
-  alpha =0,               # Altruism parameter (0 means optimal policy)
+  alpha = 0,               # Altruism parameter (0 means optimal policy)
   fx = 123                 # Exchange rate multiplier for USD conversion
 )
 
@@ -44,9 +43,6 @@ a_function <- function(alpha, beta, ns, ni, lambda_s, lambda_i) {
   diff_lambda <- lambda_s - lambda_i
   sqrt_term <- ns + ni + 4 * (1 + alpha) * beta * ni * ns * diff_lambda
   
-  print(paste("diff_lambda =", diff_lambda))
-  print(paste("sqrt_term =", sqrt_term))
-
   # defensive check
   if (sqrt_term < 0 ||diff_lambda == 0) {
     return(1)  # Prevent complex values or division by zero
@@ -64,10 +60,6 @@ utility_function <- function(a_t) {
     return(log(a_t) - a_t + 1)
 }
 
-# explore activity-utility relationship
-a_t <- seq(0,1,0.01)
-plot(a_t,utility_function(seq(0,1,0.01)),ylab='utility')
-
 ## for debugging
 # attach(parameters)
 # attach(as.list(initial_state))
@@ -75,18 +67,17 @@ plot(a_t,utility_function(seq(0,1,0.01)),ylab='utility')
 # Define the SIR model function including costates, recovered, dead, and separate costs
 sir_costate_model <- function(time, state, parameters) { 
   with(as.list(c(state, parameters)), { # this statements enables the use of the parameter and state names
-     
-    # Debugging print statements
-    print(paste("t =", time))
-    print(paste("Ns =", Ns))
-    print(paste("Ni =", Ni))
-    print(paste("Lambda_s =", Lambda_s))
-   print(paste("Lambda_i =", Lambda_i))
+
+    # # Debugging print statements
+    # print(paste("t =", time))
+    # print(paste("Ns =", Ns))
+    # print(paste("Ni =", Ni))
+    # print(paste("Lambda_s =", Lambda_s))
+    # print(paste("Lambda_i =", Lambda_i))
    
     # Calculate optimal action based on utility type
     a_t <- a_function(alpha, beta, Ns, Ni, Lambda_s, Lambda_i)
 
-    
     # stopping condition
     if(Ni < nifinal){
       return(list(rep(0,12)))
@@ -116,15 +107,10 @@ sir_costate_model <- function(time, state, parameters) {
     R0 = beta / gamma
     R_t = R0 * a_t^2 * Ns
     
-    
-    print(paste("a_t =", a_t))
     # Return the rate of change for each state variable
     return(list(c(dNs, dNi, dNr, dNd, dLambda_s, dLambda_i, dHealthCost, dSocialActivityCost, dTotalCost, a_t, u_t , R_t)))
   })
 }
-
-#a_t2<-a_function(parameters$alpha, parameters$beta, parameters$ns0, parameters$ni0, -102.859, -194.343)
-u_t0<-utility_function(0.9978751)
 
 # Initial state variables including separate costs
 initial_state <- c(Ns = parameters$ns0, 
@@ -136,23 +122,22 @@ initial_state <- c(Ns = parameters$ns0,
                    HealthCost = 0, 
                    SocialActivityCost = 0, 
                    TotalCost = 0,
-                   a_t = 0.9978751, #0.61904
-                   u_t = u_t0,#-0101193
+                   a_t = 0,#0.9978751, #0.61904
+                   u_t = 0,#-0101193
                    R_t = 0) # Lambda_s = -165,#Lambda_values[1], -102.859	-194.343 Lambda_i = -21985.5,#Lambda_values[2], -165.651	-21985.5
-#initial_state <- as.numeric(initial_state)
-#names(initial_state) <- c("Ns", "Ni", "Nr", "Nd", "Lambda_s", "Lambda_i", 
-             #             "HealthCost", "SocialActivityCost", "TotalCost", "a_t", "u_t", "R_t")
 
-# Adjust values dynamically based on `alpha`
-#if (parameters$alpha == 1) {
-#  initial_state$Lambda_s <- -165.651
-#  initial_state$Lambda_i <- -21958.5
-#}
+
+# Adjust lambda values based on `alpha`
+if (parameters$alpha == 1) {
+ initial_state$Lambda_s <- -165.651
+ initial_state$Lambda_i <- -21958.5
+}
 
 # Convert list to named numeric vector for `ode()`
 #initial_state <- unlist(initial_state)
+
 # Time sequence for pre-shock
-time_pre_shock <- seq(0, 20, by = 1)
+time_pre_shock <- seq(0, 420, by = 1)
 
 # Solve the model
 output_intervention <- ode(y = initial_state, 
@@ -161,32 +146,14 @@ output_intervention <- ode(y = initial_state,
                            parms = parameters,
                            #method= "lsoda",#method="rk4" "bdf" "euler"
                            method="rk4"
-                           ) #tcrit = time_pre_shock)
-print(output_intervention)
+                           )
+
+# inspect output
+#print(output_intervention)
+
+# as data.frame
 output_intervention_df <- as.data.frame(output_intervention)
-print(output_intervention_df$a_t)
 
-
-#output_intervention_df$a_t <- c(output_intervention_df$a_t[-1], output_intervention_df$a_t[nrow(output_intervention_df)])
-
-
-#output_intervention_df <- output_intervention_df[output_intervention_df$time %% 1 == 0, ]
-
-print(unique(output_intervention_df$time))
-output_intervention_df$a_t <- c(output_intervention_df$a_t[1],diff(output_intervention_df$a_t))
-print(output_intervention_df$a_t)
-output_intervention_df$u_t <- c(output_intervention_df$u_t[1],diff(output_intervention_df$u_t))
-print(output_intervention_df$u_t)
-
-
-
-#output_intervention_df$R_t <- c(output_intervention_df$R_t[1],diff(output_intervention_df$R_t))
-
-
-print(output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lambda_s", "Lambda_i")])
-# Install and load the writexl package if not already installed
-
-library(writexl)
 
 # Prepare the data frame with key variables: time, Ns, Ni, activity (a_t), utility (u_t), Lambda_s, and Lambda_i
 export_data <- output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lambda_s", "Lambda_i")]
@@ -194,7 +161,8 @@ export_data <- output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lam
 file_path <- "R_SIR_OutputLF.xlsx"
 # Export the data frame to an Excel file
 write_xlsx(export_data, file_path)
-print(export_data)
+print(file_path)
+#print(export_data)
 
 
 # Main SIR plot
