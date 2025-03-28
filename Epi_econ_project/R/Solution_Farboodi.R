@@ -25,8 +25,8 @@ parameters <- list(
   rho = 0.05 / 365,        # Discounting rate (ρ)
   pi = 0.0062,             # Infection fatality rate (π)
   kappa = 197,             # Expected cost of infection (κ)
-  ni0 = 0.0000526735,         # Initial infected population (Ni0)
-  ns0 = 0.9999223,         # Initial susceptible population (Ns0)
+  ni0 = 0.0000526992101922961,         # Initial infected population (Ni0)
+  ns0 = 0.999922203320773,         # Initial susceptible population (Ns0)
   nr0 = 0.00002484,        # Initial recovered population (Nr0)
   nd0 = 0.000000156,       # Initial dead population (Nd0)
   alpha = 0,               # Altruism parameter (0 means optimal policy)
@@ -117,8 +117,8 @@ initial_state <- c(Ns = parameters$ns0,
                    Ni = parameters$ni0, 
                    Nr = parameters$nr0, 
                    Nd = parameters$nd0,
-                   Lambda_s = -102.859,#Lambda_values[1], -102.859	-194.343, -164.924, -29822.368
-                   Lambda_i = -194.343,#Lambda_values[2], -165.651	-21985.5 #-165.618 -22490.5
+                   Lambda_s = -102.859711374541,#Lambda_values[1], -102.859	-194.343, -164.924, -29822.368
+                   Lambda_i = -194.343405176611,#Lambda_values[2], -165.651	-21985.5 #-165.618 -22490.5
                    HealthCost = 0, 
                    SocialActivityCost = 0, 
                    TotalCost = 0,
@@ -144,9 +144,9 @@ output_intervention <- ode(y = initial_state,
                            times = time_pre_shock, 
                            func  = sir_costate_model, 
                            parms = parameters,
-                           #method= "lsoda",#method="rk4" "bdf" "euler"
-                           method="rk4"
-                           )
+                           method= "lsoda")#,#method="rk4" "bdf" "euler"
+                           # method="rk4"
+                           # )
 
 # inspect output
 #print(output_intervention)
@@ -154,6 +154,12 @@ output_intervention <- ode(y = initial_state,
 # as data.frame
 output_intervention_df <- as.data.frame(output_intervention)
 
+# account for increment
+output_intervention_df$a_t <- c(NA,diff(output_intervention_df$a_t))
+output_intervention_df$u_t <- utility_function(output_intervention_df$a_t)
+
+R0 = parameters$beta / parameters$gamma
+output_intervention_df$R_t = R0 * output_intervention_df$a_t^2 * output_intervention_df$Ns
 
 # Prepare the data frame with key variables: time, Ns, Ni, activity (a_t), utility (u_t), Lambda_s, and Lambda_i
 export_data <- output_intervention_df[, c("time", "Ns", "Ni", "a_t", "u_t", "Lambda_s", "Lambda_i")]
@@ -163,6 +169,7 @@ file_path <- "R_SIR_OutputLF.xlsx"
 write_xlsx(export_data, file_path)
 print(file_path)
 #print(export_data)
+
 
 
 # Main SIR plot
