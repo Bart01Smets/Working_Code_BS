@@ -7,12 +7,14 @@
 !Epi_econ_project/
 !Epi_econ_project/**
 
+# ✅ Unignore the R folder itself, so Git will look inside it
+!R/
+
 # ✅ Keep specific R scripts in R/
 !R/epi_econ_lib_13.R
 !R/workbench 19.R
 !R/epi_econ_lib (4).R
 !R/workbench (3).R
-
 
 # ✅ Keep the .gitignore itself
 !.gitignore
