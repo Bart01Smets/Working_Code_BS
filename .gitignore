@@ -3,19 +3,20 @@
 
 # --- KEEP LIST BELOW ---
 
-# ✅ Keep all files inside Epi_econ_project/
+# ✅ Keep everything in Epi_econ_project/
 !Epi_econ_project/
 !Epi_econ_project/**
 
-# ✅ Keep these two R scripts only
+# ✅ Keep specific R scripts in R/
 !R/epi_econ_lib_13.R
-!R/workbench 19.R
+!R/workbench\ 19.R
+!R/epi_econ_lib\ \(4\).R
+!R/workbench\ \(3\).R
 
 # ✅ Keep the .gitignore itself
 !.gitignore
 
 # --- SYSTEM/UTILITY IGNORES ---
-# (These are ignored even if not covered by the above rules)
 
 # R and OS junk
 .Rproj.user/
@@ -24,11 +25,8 @@
 .Ruserdata
 .DS_Store
 
-# Output files and temporary data
+# Output/temporary data
 *.rds
 *.html
-*.xlsx
-*.csv
-*.pdf
 *.log
 output/
