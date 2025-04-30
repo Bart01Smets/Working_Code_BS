@@ -6,6 +6,7 @@
 ######################################################### #
 getwd()
 
+usethis::use_readme_rmd()
 
 
 setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
