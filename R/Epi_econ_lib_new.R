@@ -15,7 +15,9 @@ library(scales)
 a_function <- function(Ns, Ni, beta, lambda_s, lambda_i) {
   denom <- lambda_s - lambda_i
   inside_sqrt <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom
-  if (inside_sqrt < 0 || denom == 0) return(1)
+ # if (inside_sqrt < 0 || denom == 0) return(1)
+  if (is.na(inside_sqrt) || is.na(denom) || inside_sqrt < 0 || denom == 0) return(1)
+  
   numerator <- -(Ns + Ni) + sqrt(inside_sqrt)
   denominator <- 4 * beta * Ns * Ni * denom
   a_t <- numerator / denominator
@@ -263,6 +265,9 @@ run_sir_binomial <- function(initial_state,
     }
     
     
+    
+    
+    
     # calculate change in lambda 
     #  dLambda_s <- rho_plus_delta * Lambda_s - 
     #   (u_t + (Lambda_i - Lambda_s) *  beta_t * a_t^2 * Ni/parameters$pop_size)
@@ -329,8 +334,12 @@ run_sir_binomial <- function(initial_state,
     Nd <- Nd + dNd
     #  Lambda_s <- Lambda_s + dLambda_s
     #  Lambda_i <- Lambda_i + dLambda_i
-    lambda_s <- lambda_s+d_lambda_s
-    lambda_i <- lambda_i+d_lambda_i
+    lambda_s <- lambda_s + d_lambda_s(lambda_s, lambda_i, a_t, Ni, beta_t, parameters$rho, parameters$delta, u_t)
+    lambda_i <- lambda_i + d_lambda_i(lambda_s, lambda_i, a_t, Ns, beta_t, parameters$rho, parameters$delta, parameters$alpha, parameters$gamma, parameters$kappa, u_t)
+    
+    
+  #  lambda_s <- lambda_s+d_lambda_s
+   # lambda_i <- lambda_i+d_lambda_i
     # keep track of the states
     states_out[i_day+1,] = c(Ns, Ni, Nr, Nd,
                              lambda_s, lambda_i,
