@@ -10,6 +10,18 @@ library(scales)
 
 # Functions to calculate the optimal action (a_t)
 
+# Functions to calculate the optimal action (a_t)
+
+a_function <- function(Ns, Ni, beta, lambda_s, lambda_i) {
+  denom <- lambda_s - lambda_i
+  inside_sqrt <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom
+  if (inside_sqrt < 0 || denom == 0) return(1)
+  numerator <- -(Ns + Ni) + sqrt(inside_sqrt)
+  denominator <- 4 * beta * Ns * Ni * denom
+  a_t <- numerator / denominator
+  return(max(0, min(1, a_t)))  # Clamp to [0, 1]
+}
+
 #1: Original function
 
 #a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, scenario, tolerance) {
@@ -162,7 +174,7 @@ run_sir_binomial <- function(initial_state,
   # set summary data.table
   states_out        <- matrix(NA, nrow=length(times), ncol=length(states))
   #colnames(states_out) <- names(states)
-  colnames(states_out) <- c("Ns", "Ni", "Nr", "Nd", 
+  colnames(states_out) <- c("Ns", "Ni", "Nr", "Nd", "lambda_s", "lambda_i",
                             "HealthCost", "SocialActivityCost", "TotalCost",
                             "a_t", "u_t", "Rt")
 
@@ -177,8 +189,8 @@ run_sir_binomial <- function(initial_state,
   Ni <- states$Ni
   Nr <- states$Nr
   Nd <- states$Nd
- # lambda_s <- 0
-#  lambda_i <- 0
+  lambda_s <- 0
+  lambda_i <- 0
   HealthCost <- 0
   SocialActivityCost <- 0
   
@@ -211,8 +223,12 @@ run_sir_binomial <- function(initial_state,
      # }
     
     Rt <- calculate_Rt(parameters$R0, a_t_prev, Ns / parameters$pop_size)
-    a_t <- a_function(Rt, a_t_prev)#Rt parameters Ni
+    a_t <- a_function(Ns, Ni, beta_t, lambda_s, lambda_i)
+   # a_t <- a_function(Rt, a_t_prev)#Rt parameters Ni
     a_t_prev <- a_t  # update for next time step
+    
+    
+    
     
     
   #  cat("DEBUG -- Ni =", Ni, "Ns =", Ns, "a_t =", a_t, "beta_t =", beta_t, "\n")
@@ -236,6 +252,16 @@ run_sir_binomial <- function(initial_state,
     dNi <- new_infections - new_recoveries
     dNr <- new_recoveries - new_death
     dNd <- new_death
+    
+    # Costate (co-state) derivative functions
+    d_lambda_s <- function(lambda_s, lambda_i, a_t, Ni, beta, rho, delta, u_t) {
+      return((rho + delta) * lambda_s - u_t - (lambda_i - lambda_s) * beta * a_t^2 * Ni)
+    }
+    
+    d_lambda_i <- function(lambda_s, lambda_i, a_t, Ns, beta, rho, delta, alpha, gamma, kappa, u_t) {
+      return((rho + delta) * lambda_i - u_t - alpha * (lambda_i - lambda_s) * beta * a_t^2 * Ns - gamma * (kappa + lambda_i))
+    }
+    
     
     # calculate change in lambda 
     #  dLambda_s <- rho_plus_delta * Lambda_s - 
@@ -303,11 +329,11 @@ run_sir_binomial <- function(initial_state,
     Nd <- Nd + dNd
     #  Lambda_s <- Lambda_s + dLambda_s
     #  Lambda_i <- Lambda_i + dLambda_i
-    #lambda_s <- lambda_s+d_lambda_s
-    #lambda_i <- lambda_i+d_lambda_i
+    lambda_s <- lambda_s+d_lambda_s
+    lambda_i <- lambda_i+d_lambda_i
     # keep track of the states
     states_out[i_day+1,] = c(Ns, Ni, Nr, Nd,
-                             #lambda_s, lambda_i,
+                             lambda_s, lambda_i,
                              HealthCost, SocialActivityCost, 
                              HealthCost + SocialActivityCost,
                              a_t, u_t, Rt)#Lambda_s, Lamba_i
