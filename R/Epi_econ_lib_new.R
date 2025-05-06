@@ -243,40 +243,7 @@ run_sir_binomial <- function(initial_state,
     # dLambda_i <- rho_plus_delta * Lambda_i - 
     #  (u_t + parameters$alpha * (Lambda_i - Lambda_s) *  beta_t * a_t^2 * Ns/parameters$pop_size) - 
     #  parameters$gamma * (parameters$kappa + Lambda_i)
-    
-    
-    # Derivative of mu_s 
-    #  d_mu_s <- rho_plus_delta * mu_s - u_t - (mu_i - mu_s) * beta_t * a_t^2 * Ni/parameters$pop_size
-    #  R0 <- parameters$beta / parameters$gamma
-    
-    # Function to calculate R(t)
-    #  calculate_Rt <- function(R0, a_t, Ns) {
-    #    return(R0 * a_t^2 * Ns)
-    # }
-    # Derivative of mu_i 
-    # d_mu_i <- rho_plus_delta * mu_i - u_t - (mu_i - mu_s) * beta_t * a_t^2 * Ns/parameters$pop_size + parameters$gamma * (parameters$kappa + mu_i)
-   # if (parameters$scenario == "laissez-faire") {
-    #  d_lambda_s <- rho_plus_delta * lambda_s - 
-     #   (u_t + (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size)
-    #  d_lambda_i <- rho_plus_delta * lambda_i - 
-     #   (u_t + parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size) + 
-    #    parameters$gamma * (parameters$kappa + lambda_i)
-      
-      #d_lambda_s <- rho_plus_delta * lambda_s - 
-      #  u_t - (1 + parameters$alpha) * (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
-      #d_lambda_i <- rho_plus_delta * lambda_i - 
-      #  u_t - (1 + parameters$alpha) * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
-      #   parameters$gamma * (parameters$kappa + lambda_i)
-      
-      # Corrected equation for d_lambda_s
-      #   d_lambda_s <- rho_plus_delta * lambda_s - 
-      #      u_t - parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
-      
-      # Corrected equation for d_lambda_i
-      #   d_lambda_i <- rho_plus_delta * lambda_i - 
-      #    u_t - parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
-      #   parameters$gamma * (parameters$kappa + lambda_i)
-      
+  
       
   #  } else if (parameters$scenario == "optimal-policy") {
    #   d_lambda_s <- rho_plus_delta * lambda_s - 
@@ -807,5 +774,41 @@ run_experiments <- function(initial_state, times, parameters,
 #    return( (Ns + Ni) / (Ns + Ni + (1 + alpha) * beta * Ni * Ns * denom) )
 # }
 #}
+
+#dlambda's
+
+
+
+# Derivative of mu_s 
+#  d_mu_s <- rho_plus_delta * mu_s - u_t - (mu_i - mu_s) * beta_t * a_t^2 * Ni/parameters$pop_size
+#  R0 <- parameters$beta / parameters$gamma
+
+# Function to calculate R(t)
+#  calculate_Rt <- function(R0, a_t, Ns) {
+#    return(R0 * a_t^2 * Ns)
+# }
+# Derivative of mu_i 
+# d_mu_i <- rho_plus_delta * mu_i - u_t - (mu_i - mu_s) * beta_t * a_t^2 * Ns/parameters$pop_size + parameters$gamma * (parameters$kappa + mu_i)
+# if (parameters$scenario == "laissez-faire") {
+#  d_lambda_s <- rho_plus_delta * lambda_s - 
+#   (u_t + (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size)
+#  d_lambda_i <- rho_plus_delta * lambda_i - 
+#   (u_t + parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size) + 
+#    parameters$gamma * (parameters$kappa + lambda_i)
+
+#d_lambda_s <- rho_plus_delta * lambda_s - 
+#  u_t - (1 + parameters$alpha) * (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
+#d_lambda_i <- rho_plus_delta * lambda_i - 
+#  u_t - (1 + parameters$alpha) * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
+#   parameters$gamma * (parameters$kappa + lambda_i)
+
+# Corrected equation for d_lambda_s
+#   d_lambda_s <- rho_plus_delta * lambda_s - 
+#      u_t - parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
+
+# Corrected equation for d_lambda_i
+#   d_lambda_i <- rho_plus_delta * lambda_i - 
+#    u_t - parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
+#   parameters$gamma * (parameters$kappa + lambda_i)
 
 
