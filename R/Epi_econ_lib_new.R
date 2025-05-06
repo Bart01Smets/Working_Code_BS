@@ -13,7 +13,7 @@ library(scales)
 #1: Original function
 
 #a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, scenario, tolerance) {
- # denom <- max(abs(lambda_s - lambda_i), tolerance)  # Avoid division by zero#Lambda_s -Lambda_i
+  #denom <- max(abs(lambda_s - lambda_i), tolerance)  # Avoid division by zero#Lambda_s -Lambda_i
   
  #test
   
@@ -38,7 +38,7 @@ library(scales)
 # 
 #   return(max(0, min(1, a_t)))  # Ensure stays between 0 and 1
 # }
-#
+
 
 #3: Simple infections rule
 
@@ -56,29 +56,29 @@ library(scales)
 
 #4: Simple rule based on previous activity.
 
-# Updated a_function with memory of previous a_t
-# a_function <- function(Rt, a_t_previous, sensitivity_up = 0.05, sensitivity_down = 0.05) {
-#   if (is.na(Rt)) {
-#     warning("Invalid Rt")
-#     return(0)
-#   }
-#   
-#   if (Rt > 1) {
-#     # If Rt > 1, decrease a_t (scaled by sensitivity factor)
-#     delta <- -sensitivity_down #* (Rt - 1)
-#   } else {
-#     # If Rt < 1, increase a_t (scaled by sensitivity factor)
-#     delta <- sensitivity_up #* (1 - Rt)
-#   }
-#   
-#   # Update a_t
-#   a_t_new <- a_t_previous*(1+ delta)
-#   
-#   # Clamp between 0 and 1
-#   a_t_new <- max(0, min(1, a_t_new))
-#   
-#   return(a_t_new)
-# }
+#Updated a_function with memory of previous a_t
+a_function <- function(Rt, a_t_previous, sensitivity_up = 0.05, sensitivity_down = 0.05) {
+  if (is.na(Rt)) {
+    warning("Invalid Rt")
+    return(0)
+  }
+
+  if (Rt > 1) {
+    # If Rt > 1, decrease a_t (scaled by sensitivity factor)
+    delta <- -sensitivity_down #* (Rt - 1)
+  } else {
+    # If Rt < 1, increase a_t (scaled by sensitivity factor)
+    delta <- sensitivity_up #* (1 - Rt)
+  }
+
+  # Update a_t
+  a_t_new <- a_t_previous*(1+ delta)
+
+  # Clamp between 0 and 1
+  a_t_new <- max(0, min(1, a_t_new))
+
+  return(a_t_new)
+}
 
 
 
