@@ -42,43 +42,43 @@ library(scales)
 
 #3: Simple infections rule
 
-# a_function <- function(Ni, parameters) {
-#   Ni_prop <- Ni / parameters$pop_size
-#   sensitivity <- 50  # Tune this number to control steepness
-#   a_t <- 1 / (1 + sensitivity * Ni_prop)#Ni_prop
-#   if (is.na(Ni) || is.null(parameters$pop_size) || is.na(parameters$pop_size)) {
-#     warning("Invalid inputs to a_function")
-#     return(0)
-#   }
-# 
-#  return(max(0, min(1, a_t)))
-# }
+a_function <- function(Ni, parameters) {
+  Ni_prop <- Ni / parameters$pop_size
+  sensitivity <- 50  # Tune this number to control steepness
+  a_t <- 1 / (1 + sensitivity * Ni_prop)#Ni_prop
+  if (is.na(Ni) || is.null(parameters$pop_size) || is.na(parameters$pop_size)) {
+    warning("Invalid inputs to a_function")
+    return(0)
+  }
+
+ return(max(0, min(1, a_t)))
+}
 
 #4: Simple rule based on previous activity.
 
 #Updated a_function with memory of previous a_t
-a_function <- function(Rt, a_t_previous, sensitivity_up = 0.05, sensitivity_down = 0.05) {
-  if (is.na(Rt)) {
-    warning("Invalid Rt")
-    return(0)
-  }
-
-  if (Rt > 1) {
-    # If Rt > 1, decrease a_t (scaled by sensitivity factor)
-    delta <- -sensitivity_down #* (Rt - 1)
-  } else {
-    # If Rt < 1, increase a_t (scaled by sensitivity factor)
-    delta <- sensitivity_up #* (1 - Rt)
-  }
-
-  # Update a_t
-  a_t_new <- a_t_previous*(1+ delta)
-
-  # Clamp between 0 and 1
-  a_t_new <- max(0, min(1, a_t_new))
-
-  return(a_t_new)
-}
+# a_function <- function(Rt, a_t_previous, sensitivity_up = 0.05, sensitivity_down = 0.05) {
+#   if (is.na(Rt)) {
+#     warning("Invalid Rt")
+#     return(0)
+#   }
+# 
+#   if (Rt > 1) {
+#     # If Rt > 1, decrease a_t (scaled by sensitivity factor)
+#     delta <- -sensitivity_down #* (Rt - 1)
+#   } else {
+#     # If Rt < 1, increase a_t (scaled by sensitivity factor)
+#     delta <- sensitivity_up #* (1 - Rt)
+#   }
+# 
+#   # Update a_t
+#   a_t_new <- a_t_previous*(1+ delta)
+# 
+#   # Clamp between 0 and 1
+#   a_t_new <- max(0, min(1, a_t_new))
+# 
+#   return(a_t_new)
+# }
 
 
 
@@ -211,7 +211,7 @@ run_sir_binomial <- function(initial_state,
      # }
     
     Rt <- calculate_Rt(parameters$R0, a_t_prev, Ns / parameters$pop_size)
-    a_t <- a_function(Rt, a_t_prev)#Rt parameters Ni
+    a_t <- a_function(Ni, parameters)#Rt parameters Ni Rt a_t_prev
     a_t_prev <- a_t  # update for next time step
     
     
