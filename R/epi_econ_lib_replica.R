@@ -35,6 +35,9 @@ a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, sc
   #  sqrt_arg <- 1 + 8 * beta * Ns * Ni * (alpha + lambda_s - lambda_i)
   #  return((sqrt(sqrt_arg) - 1) / X)}
     
+   
+   
+   
     
   }}# else if (utility_type == "Quadratic") {
   #  return( (Ns + Ni) / (Ns + Ni + (1 + alpha) * beta * Ni * Ns * denom) )
@@ -178,6 +181,21 @@ run_sir_binomial <- function(initial_state,
         (u_t + parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size) - 
         parameters$gamma * (parameters$kappa + lambda_i)
       
+    } else if (parameters$scenario == "optimal-policy") {
+      # d_mu_s = (rho + delta) * mu_s - u(a) - (mu_i - mu_s) * beta * a^2 * Ni
+      d_lambda_s <- rho_plus_delta * lambda_s - (
+        u_t + (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
+      )
+      
+      # d_mu_i = (rho + delta) * mu_i - u(a) - (mu_i - mu_s) * beta * a^2 * Ns + gamma * (kappa + mu_i)
+      d_lambda_i <- rho_plus_delta * lambda_i - (
+        u_t + (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size -
+          parameters$gamma * (parameters$kappa + lambda_i)
+      )
+    }
+    
+      
+      
    #   d_lambda_s <- rho_plus_delta * lambda_s + 
      #   beta_t * a_t^2 * Ni / parameters$pop_size * (parameters$alpha + lambda_s - lambda_i)
       
@@ -204,13 +222,13 @@ run_sir_binomial <- function(initial_state,
      #   parameters$gamma * (parameters$kappa + lambda_i)
       
       
-    } else if (parameters$scenario == "optimal-policy") {
-      d_lambda_s <- rho_plus_delta * lambda_s - 
-        u_t - (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
-      d_lambda_i <- rho_plus_delta * lambda_i - 
-        u_t - (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
-        parameters$gamma * (parameters$kappa + lambda_i)
-    }
+    # } else if (parameters$scenario == "optimal-policy") {
+    #   d_lambda_s <- rho_plus_delta * lambda_s - 
+    #     u_t - (lambda_i - lambda_s) * beta_t * a_t^2 * Ni / parameters$pop_size
+    #   d_lambda_i <- rho_plus_delta * lambda_i - 
+    #     u_t - (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size + 
+    #     parameters$gamma * (parameters$kappa + lambda_i)
+    # }
     
     
     # get current costs (per capita)
