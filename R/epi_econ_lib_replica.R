@@ -8,38 +8,66 @@
 library(confintr)
 library(scales)
 
-# Function to calculate the optimal action (a_t)
-a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, scenario, tolerance) {
-  denom <- max(abs(lambda_s - lambda_i), tolerance)  # Avoid division by zero#Lambda_s -Lambda_i
-  
-  if(Ni == 0){
-    return(1)
-  }
-
-  # if (utility_type == "Log") {
-  #  sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
-  # return((- (Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))
-  
-  #if  #sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
-  #return( (-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom) )
-  
- if (utility_type == "Log") {
-    if (scenario == "laissez-faire") {
-      sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
-      return((-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom))
-    } else if (scenario == "optimal-policy") {
-      sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
-      return((-(Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))
-    }
+# # Function to calculate the optimal action (a_t)
+# a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, scenario, tolerance) {
+#   denom <- max(abs(lambda_s - lambda_i), tolerance)  # Avoid division by zero#Lambda_s -Lambda_i
+# 
+#   if(Ni == 0){
+#     return(1)
+#   }
+# 
+#   # if (utility_type == "Log") {
+#   #  sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
+#   # return((- (Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))
+#   
+#   #if  #sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
+#   #return( (-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom) )
+#   
+#  if (utility_type == "Log") {
+#     if (scenario == "laissez-faire") {
+#       sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
+#       return((-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom))
+#     } else if (scenario == "optimal-policy") {
+#       sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
+#       return((-(Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))
+#     }
  #   X <- 4 * beta * Ns * Ni * (alpha + lambda_s - lambda_i)
   #  sqrt_arg <- 1 + 8 * beta * Ns * Ni * (alpha + lambda_s - lambda_i)
   #  return((sqrt(sqrt_arg) - 1) / X)}
     
+   a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, scenario, tolerance) {
+     # Defensive checks
+     if (Ni == 0 || is.na(Ns) || is.na(Ni)) {
+       return(1)  # No infection or undefined inputs → full activity
+     }
+     
+     denom <- max(abs(lambda_s - lambda_i), tolerance)  # Avoid division by zero
+     
+     if (utility_type == "Log") {
+       if (scenario == "laissez-faire") {
+         # Derived from: 1/a = 2 * beta * a * I * (lambda_s - lambda_i)
+         # => a^2 = 1 / (2 * beta * I * (lambda_s - lambda_i))
+         multiplier <- 2 * beta * Ni * denom
+         a_sq <- 1 / multiplier
+         a_t <- sqrt(a_sq)
+         return(max(0, min(1, a_t)))
+       } else if (scenario == "optimal-policy") {
+         # Insert optimal policy rule if needed
+         sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
+         return(max(0, min(1, (-(Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))))
+       }
+     } else {
+       warning("Only 'Log' utility implemented for Fenichel-style rule")
+       return(1)
+     }
+   }
    
+   
+  
    
    
     
-  }}# else if (utility_type == "Quadratic") {
+ # }}# else if (utility_type == "Quadratic") {
   #  return( (Ns + Ni) / (Ns + Ni + (1 + alpha) * beta * Ni * Ns * denom) )
  # }
 
@@ -180,6 +208,16 @@ run_sir_binomial <- function(initial_state,
       d_lambda_i <- rho_plus_delta * lambda_i - 
         (u_t + parameters$alpha * (lambda_i - lambda_s) * beta_t * a_t^2 * Ns / parameters$pop_size) - 
         parameters$gamma * (parameters$kappa + lambda_i)
+      
+      # d_lambda_s: from ∂H/∂S
+      d_lambda_s <- rho_plus_delta * lambda_s - 
+        u_t + beta_t * a_t^2 * Ni / parameters$pop_size * (lambda_s - lambda_i)
+      
+      # d_lambda_i: from ∂H/∂I
+      d_lambda_i <- (rho_plus_delta + parameters$gamma) * lambda_i + 
+        beta_t * a_t^2 * Ns / parameters$pop_size * (lambda_s - lambda_i)
+      
+      
       
     } else if (parameters$scenario == "optimal-policy") {
       # d_mu_s = (rho + delta) * mu_s - u(a) - (mu_i - mu_s) * beta * a^2 * Ni

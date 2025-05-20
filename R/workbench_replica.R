@@ -33,7 +33,7 @@ parameters <- list(
   time_horizon = 500,      # Time of shock
   utility_type = "Log",    # Utility type: "Log" or "Quadratic"
   rng_seed = 123,
-  scenario = "optimal-policy",
+  scenario = "laissez-faire",
   R0= (3/10+1/7)/(1/7),
   infect_thres = 1
 )

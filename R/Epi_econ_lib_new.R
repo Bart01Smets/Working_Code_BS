@@ -10,24 +10,24 @@ library(scales)
 
 # Functions to calculate the optimal action (a_t)
 
-#1: Original function
+# #1: Original function
+# 
+# a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, scenario, tolerance) {
+#   denom <- max(abs(lambda_s - lambda_i), tolerance)  # Avoid division by zero#Lambda_s -Lambda_i
+# 
+# #test
+# 
+#   if (utility_type == "Log") {
+#     sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
+#    return((- (Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))
+# 
+#   if  sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
+#   return( (-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom) )
 
-#a_function <- function(alpha, beta, Ns, Ni, lambda_s, lambda_i, utility_type, scenario, tolerance) {
-  #denom <- max(abs(lambda_s - lambda_i), tolerance)  # Avoid division by zero#Lambda_s -Lambda_i
-  
- #test
-  
- # if (utility_type == "Log") {
- #   sqrt_arg <- (Ns + Ni)^2 + 8 * beta * Ns * Ni * denom * (Ns + Ni)
- #  return((- (Ns + Ni) + sqrt(sqrt_arg)) / (4 * beta * Ns * Ni * denom))
-  
-  #if  sqrt_arg <- (Ns + Ni) + 4 * (1 + alpha) * beta * Ni * Ns * denom
- # return( (-(Ns + Ni) + sqrt(sqrt_arg)) / (2 * (1 + alpha) * beta * Ni * Ns * denom) )
 
 
-
-#2: Optimal activity keeping the repreoduction number below 1.
-
+# #2: Optimal activity keeping the repreoduction number below 1.
+# 
 # a_function <- function(R0, Ns_prop) {
 #   if (is.na(R0) || is.na(Ns_prop) || R0 <= 0 || Ns_prop <= 0) {
 #     warning("Invalid R0 or Ns_prop")
@@ -40,23 +40,23 @@ library(scales)
 # }
 
 
-#3: Simple infections rule
+# #3: Simple infections rule
+# 
+# a_function <- function(Ni, parameters) {
+#   Ni_prop <- Ni / parameters$pop_size
+#   sensitivity <- 50  # Tune this number to control steepness
+#   a_t <- 1 / (1 + sensitivity * Ni_prop)#Ni_prop
+#   if (is.na(Ni) || is.null(parameters$pop_size) || is.na(parameters$pop_size)) {
+#     warning("Invalid inputs to a_function")
+#     return(0)
+#   }
+# 
+#  return(max(0, min(1, a_t)))
+# }
 
-a_function <- function(Ni, parameters) {
-  Ni_prop <- Ni / parameters$pop_size
-  sensitivity <- 50  # Tune this number to control steepness
-  a_t <- 1 / (1 + sensitivity * Ni_prop)#Ni_prop
-  if (is.na(Ni) || is.null(parameters$pop_size) || is.na(parameters$pop_size)) {
-    warning("Invalid inputs to a_function")
-    return(0)
-  }
-
- return(max(0, min(1, a_t)))
-}
-
-#4: Simple rule based on previous activity.
-
-#Updated a_function with memory of previous a_t
+# #4: Simple rule based on previous activity.
+# 
+# #Updated a_function with memory of previous a_t
 # a_function <- function(Rt, a_t_previous, sensitivity_up = 0.05, sensitivity_down = 0.05) {
 #   if (is.na(Rt)) {
 #     warning("Invalid Rt")
@@ -79,6 +79,267 @@ a_function <- function(Ni, parameters) {
 # 
 #   return(a_t_new)
 # }
+
+
+#5: Myopic Laissez-faire
+# Myopic altruistic activity function (laissez-faire equilibrium)
+a_function <- function(Ns, Ni, parameters) {#
+  Ni_prop <- Ni / parameters$pop_size
+  Ns_prop <-  Ns/parameters$pop_size#parameters$ns0  # Assume constant or use from state if dynamic
+  epsilon <- 1e-12
+  Ni_prop <- max(Ni_prop, epsilon)
+
+  # Compute multiplier
+  multiplier <- parameters$beta * Ni_prop * parameters$kappa * (1 + parameters$alpha*Ns_prop)#Ns_prop
+
+  sqrt_term <- sqrt(1 + 4 * multiplier)
+  a_t <- (-1 + sqrt_term) / (2 * multiplier)
+
+ #  Clamp a_t between [0,1]
+ return (a_t)
+
+ #(max(0, min(1, a_t)))
+ }
+# a_function <- function(Ni, Ns, parameters) {
+#   Ni_prop <- Ni / parameters$pop_size
+#   Ns_prop <- Ns / parameters$pop_size
+#   multiplier <- parameters$beta * Ni_prop * Ns_prop * parameters$kappa * (1 + parameters$alpha * Ns_prop)
+#   sqrt_term <- sqrt(1 + 8 * multiplier)
+#   a_t <- (-1 + sqrt_term) / (4 * multiplier)
+#   return(max(0, min(1, a_t)))
+# }
+
+# # McAdams–Day-style Laissez-Faire Activity Rule
+# a_function <- function(Ni, Ns, parameters) {
+#   Ni_prop <- Ni / parameters$pop_size
+#   Ns_prop <- Ns / parameters$pop_size
+# 
+#   b1   <- parameters$b1
+#   b2   <- parameters$b2
+#   beta <- parameters$beta
+#   H    <- parameters$H  # expected harm from infection
+# 
+#   denom <- 2 * beta * Ns_prop * Ni_prop * H - 2 * b2
+#   if (denom <= 0) return(1)  # no infection risk → full activity
+# 
+#   a_star <- b1 / denom
+#   return(max(0, min(1, a_star)))  # clamp to [0, 1]
+# }
+# #McAdams–Day-style Optimal Policy Activity Rule (Social Planner)
+# a_function <- function(Ni, Ns, parameters) {
+#   Ni_prop <- Ni / parameters$pop_size
+#   Ns_prop <- Ns / parameters$pop_size
+# 
+#   b1   <- parameters$b1
+#   b2   <- parameters$b2
+#   beta <- parameters$beta
+#   H    <- parameters$H
+# 
+#   total_prop <- Ns_prop + Ni_prop
+#   denom <- 2 * beta * Ns_prop * Ni_prop * H - 2 * total_prop * b2
+#   if (denom <= 0) return(1)
+# 
+#   numer <- total_prop * b1
+#   a_star <- numer / denom
+#   return(max(0, min(1, a_star)))
+# }
+
+# # Activity function: Laissez-Faire with Keppo-style myopic utility
+# a_function <- function(Ni, Ns, parameters) {
+#   pi <- Ni / parameters$pop_size
+#   beta <- parameters$beta
+#   gamma <- parameters$gamma
+#   L <- parameters$L
+#   sigma <- parameters$sigma
+#   q_pi <- sigma / (sigma + pi)
+# 
+#   denom <- 2 * gamma * beta * pi * q_pi * L
+#   if (denom <= 0) return(1)
+# 
+#   a_star <- denom^(-1 / (2 * gamma - 1))
+#   return(max(0, min(1, a_star)))
+# }
+# 
+# #Bethune, Korinek
+# 
+# a_function <- function(Ni, Ns, parameters) {
+#   # Parameters needed
+#   phi <- parameters$phi       # weight on utility
+#   beta <- parameters$beta     # transmission rate
+#   kappa <- parameters$kappa   # expected cost of infection
+#   A <- 1                      # average activity level (externalized in laissez-faire)
+# 
+#   # Defensive programming
+#   if (Ni <= 0 || is.na(Ni)) return(1)  # if no infections, full activity
+# 
+#   # Core expression
+#   numerator <- -phi + sqrt(phi^2 + 8 * beta * A * Ni * kappa * phi)
+#   denominator <- 4 * beta * A * Ni * kappa
+# 
+#   a_t <- numerator / denominator
+# 
+#   # Clamp a_t between 0 and 1
+#   return(max(0, min(1, a_t)))
+# }
+
+
+# if (nrow(output_summary) == 0) {
+#   warning("All simulations faded out — no data to plot.")
+#   return(NULL)
+# }
+
+
+
+
+
+
+
+# # Activity function: Optimal Policy (Planner) with Keppo-style welfare
+# a_function <- function(Ni, Ns, parameters) {
+#   S <- Ns / parameters$pop_size
+#   I <- Ni / parameters$pop_size
+# 
+#   beta <- parameters$beta
+#   gamma <- parameters$gamma
+#   L <- parameters$L
+# 
+#   numerator <- S + I
+#   denominator <- 2 * gamma * beta * S * I * L
+# 
+#   if (denominator <= 0) return(1)
+# 
+#   a_star <- (numerator / denominator)^(1 / (2 * gamma - 1))
+#   return(max(0, min(1, a_star)))
+# }
+
+
+# #6 a_t for optimal policy in the myopic scenario
+# # Optimal policy activity function (derived from planner's FOC)
+# a_function <- function(Ni, Ns, parameters) {
+#   # Defensive checks
+#     Ni_prop <- Ni / parameters$pop_size
+#      Ns_prop <- Ns / parameters$pop_size
+#      epsilon <- 1e-12  # for numerical safety
+#      Ni_prop <- max(Ni_prop, epsilon)
+#      Ns_prop <- max(Ns_prop, epsilon)
+#   
+#   
+#   if (is.na(Ns) || is.na(Ni) || Ns <= 0 || Ni <= 0) {
+#     warning("Invalid Ns or Ni in a_function()")
+#     return(0)
+#   }
+# 
+#   beta <- parameters$beta
+#   kappa <- parameters$kappa
+#   denom <- beta * Ns_prop * Ni * kappa / (Ns_prop + Ni_prop)
+#   sqrt_term <- sqrt(1 + 8 * denom)
+# 
+#   a_t <- (-1 + sqrt_term) / (4 * denom)
+# 
+#   return(max(0, min(1, a_t)))  # Clamp to [0, 1]
+# }
+
+# #7: Optimal policy for behavioral rule
+# 
+# # # Optimal policy activity function: conservative and persistent distancing
+# a_function <- function(Ni, parameters) {
+#   Ni_prop <- Ni / parameters$pop_size
+#   base_reduction <- 0.4    # baseline reduction even at low infection
+#   max_suppression <- 0.9   # maximum reduction at high prevalence
+#   sensitivity <- 300       # higher = more reactive to small infections
+# 
+#   a_t <- 1 - (base_reduction + (1 - base_reduction) * (1 - exp(-sensitivity * Ni_prop)))
+# 
+#   # Bound the activity level between 0 and 1
+#  # a_t <- max(0, min(1, a_t))
+# 
+#   if (is.na(a_t)) {
+#     warning("Invalid inputs to a_function")
+#     return(0)
+#   }
+# 
+#   return(a_t)
+# }
+# #8
+# # Myopic Optimal Activity Function (Social Planner)
+# a_function <- function(Ni, Ns, parameters) {
+#   Ni_prop <- Ni / parameters$pop_size
+#   Ns_prop <- Ns / parameters$pop_size
+#   epsilon <- 1e-12  # for numerical safety
+#   Ni_prop <- max(Ni_prop, epsilon)
+#   Ns_prop <- max(Ns_prop, epsilon)
+#   
+#   # Compute M = β * Ni * Ns * κ * (1 + α)
+#   multiplier <- parameters$beta * Ni_prop * Ns_prop * parameters$kappa * (1 + parameters$alpha)
+#   
+#   # Avoid division by zero
+#   if (multiplier <= 0) return(1)
+#   
+#   # Compute a(t)
+#   sqrt_term <- sqrt(1 + 8 * multiplier)
+#   a_t <- (-1 + sqrt_term) / (4 * multiplier)
+#   
+#   # Clamp to [0, 1] for realism
+#   return(max(0, min(1, a_t)))
+# }
+# #9: rule of thumb social activity based on Ni for optimal policy
+# # Rule-of-thumb social activity function based on infection level Ni
+# a_function <- function(Ni) {
+#   # Hardcoded parameters
+#   vigilance_threshold <- 0.001   # threshold infection rate (e.g. 0.1%)
+#   vigilance_sensitivity <- 5000  # steepness of response
+#   
+#   # Edge case: if no infections, full activity
+#   if (Ni <= 0) {
+#     return(1)
+#   }
+#   
+#   # Vigilance-based suppression (inverse logistic-like decay)
+#   a_t <- 1 / (1 + vigilance_sensitivity * (Ni / vigilance_threshold)^2)
+#   
+#   # Ensure output is in [0,1]
+#   return(max(min(a_t, 1), 0))
+# }
+
+# a_function <- function(Ni, Ns, Rt, a_t_prev, parameters) {
+#   scenario <- parameters$scenario
+# 
+#   if (scenario == "log-optimal") {
+#   #   Implement closed-form from FOC (lambda-based)
+#   #   [Insert your original utility-based solution]
+#   } else if (scenario == "Rt-threshold") {
+#     # a_t decreases when Rt > 1
+#     if (Rt > 1) {
+#       return(max(0, a_t_prev * 0.9))
+#     } else {
+#       return(min(1, a_t_prev * 1.01))
+#     }
+#   } else if (scenario == "infection-vigilance") {
+#     # Simple infection-based suppression (your current rule)
+#     Ni_prop <- Ni / parameters$pop_size
+#     threshold <- 0.001
+#     sensitivity <- 5000
+#     a_t <- 1 / (1 + sensitivity * (Ni_prop / threshold)^2)
+#     return(max(min(a_t, 1), 0))
+#   } else {
+#     warning("Unrecognized scenario in a_function")
+#     return(1)
+#   }
+# }
+
+# a_function <- function(Ni, parameters) {
+#   Ni_prop <- Ni / parameters$pop_size  # Convert to proportion
+# 
+#   vigilance_threshold <- 0.002   # e.g. 0.2% threshold
+#   vigilance_sensitivity <- 10000  # reduced slope for smoother decay
+# 
+#   if (Ni_prop <= 0) return(1)
+# 
+#   a_t <- 1 / (1 + vigilance_sensitivity * (Ni_prop / vigilance_threshold)^2)
+#   return(max(min(a_t, 1), 0))
+# }
+
+
 
 
 
@@ -211,7 +472,9 @@ run_sir_binomial <- function(initial_state,
      # }
     
     Rt <- calculate_Rt(parameters$R0, a_t_prev, Ns / parameters$pop_size)
-    a_t <- a_function(Ni, parameters)#Rt parameters Ni Rt a_t_prev
+    Ns_prop <- Ns / parameters$pop_size
+    a_t <- a_function(Ni, Ns, parameters)
+#Rt parameters Ni Rt a_t_prev
     a_t_prev <- a_t  # update for next time step
     
     
