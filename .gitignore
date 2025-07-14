@@ -22,6 +22,8 @@ workbench\ 19.R
 !R/epi_econ_lib_replica.R
 !R/workbench_new.R
 !R/epi_econ_lib_new.R
+!R/workbench_307.R
+!R/epi_econ_lib_307.R
 
 # ✅ Keep the .gitignore itself
 !.gitignore
