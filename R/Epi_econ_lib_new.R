@@ -29,64 +29,77 @@ a_function <- function(Ni, Ns, parameters) {
   return(max(0, min(1, a_t)))
 }
 
-##Altruistic functions
-# a_function <- function(Ni, Ns, parameters, version = "myopic_altruistic") {
-#   if (Ni < 1e-10 || Ns < 1e-10) return(1)
-# 
-#   Ni_prop <- Ni / parameters$pop_size
-#   Ns_prop <- Ns / parameters$pop_size
-#   beta <- parameters$beta
-#   kappa <- parameters$kappa
-#   alpha <- parameters$alpha
-# 
-#   num <- Ns_prop + Ni_prop
-#   mult <- beta * kappa * Ns_prop * Ni_prop
-# 
-#   # Expression 1: Altruism case (Equation 30)
-#   if (version == "altruism") {
-#     denom <- (1 + alpha) * mult
-#     a_t <- sqrt(num / denom)
-#   }
-# 
-#   # Expression 2: Optimal policy (Equation 21)
-#   else if (version == "optimal") {
-#     denom <- 2 * mult
-#     a_t <- sqrt(num / denom)
-#   }
-# 
-#   # Expression 3: Quadratic root (Equation 11)
-#   else if (version == "quadratic") {
-#     sqrt_term <- 1 + 8 * mult * num
-#     if (sqrt_term < 0 || mult == 0) return(1)
-#     a_t <- (-1 + sqrt(sqrt_term)) / (4 * mult)
-#   }
-#   else if (version == "laissez-faire") {
-#     # Derived: (-num + sqrt(num^2 + 8 * mult * num)) / (4 * mult)
-#     sqrt_term <- num^2 + 8 * mult * num
-#     if (sqrt_term < 0 || mult == 0) return(1)
-#     a_t <- (-num + sqrt(sqrt_term)) / (4 * mult)
-#   }
-#   else if (version == "altruistic_myopic") {
-#     denom <- 2 * (1 + alpha) * mult
-#     if (denom == 0) return(1)
-#     a_t <- sqrt(num / denom)
-#   }#ok results
-#   else if (version == "altr_myo") {
-#     # Myopic altruism where external harm is proxied by kappa
-#     harm_term <- kappa + alpha * kappa  # i.e., (1 + alpha) * kappa
-#     denom <- 2 * beta * Ns_prop * Ni_prop * harm_term
-#     if (denom <= 0) return(1)
-#     a_t <- sqrt(num / denom)}
-#     
-#     else if (version == "myopic_altruistic") {
-#       # Full expression: a* = (-1 + sqrt(1 + 8βκnsni(1 + αβns))) / [4βκnsni(1 + αβns)]
-#       denom <- 4 * beta * kappa * Ns_prop * Ni_prop * (1 + alpha * beta * Ns_prop)
-#       sqrt_term <- 1 + 8 * beta * kappa * Ns_prop * Ni_prop * (1 + alpha * beta * Ns_prop)
-#       if (denom <= 0 || sqrt_term < 0) return(1)
-#       a_t <- (-1 + sqrt(sqrt_term)) / denom
-#   }
-# 
+#Altruistic functions
+a_function <- function(Ni, Ns, parameters, version = "myopic_altruistic") {
+  if (Ni < 1e-10 || Ns < 1e-10) return(1)
 
+  Ni_prop <- Ni / parameters$pop_size
+  Ns_prop <- Ns / parameters$pop_size
+  beta <- parameters$beta
+  kappa <- parameters$kappa
+  alpha <- parameters$alpha
+
+  num <- Ns_prop + Ni_prop
+  mult <- beta * kappa * Ns_prop * Ni_prop
+
+  # Expression 1: Altruism case (Equation 30)
+  if (version == "altruism") {
+    denom <- (1 + alpha) * mult
+    a_t <- sqrt(num / denom)
+  }
+
+  # Expression 2: Optimal policy (Equation 21)
+  else if (version == "optimal") {
+    denom <- 2 * mult
+    a_t <- sqrt(num / denom)
+  }
+
+  # Expression 3: Quadratic root (Equation 11)
+  else if (version == "quadratic") {
+    sqrt_term <- 1 + 8 * mult * num
+    if (sqrt_term < 0 || mult == 0) return(1)
+    a_t <- (-1 + sqrt(sqrt_term)) / (4 * mult)
+  }
+  else if (version == "laissez-faire") {
+    # Derived: (-num + sqrt(num^2 + 8 * mult * num)) / (4 * mult)
+    sqrt_term <- num^2 + 8 * mult * num
+    if (sqrt_term < 0 || mult == 0) return(1)
+    a_t <- (-num + sqrt(sqrt_term)) / (4 * mult)
+  }
+  else if (version == "altruistic_myopic") {
+    denom <- 2 * (1 + alpha) * mult
+    if (denom == 0) return(1)
+    a_t <- sqrt(num / denom)
+  }#ok results
+  else if (version == "altr_myo") {
+    # Myopic altruism where external harm is proxied by kappa
+    harm_term <- kappa + alpha * kappa  # i.e., (1 + alpha) * kappa
+    denom <- 2 * beta * Ns_prop * Ni_prop * harm_term
+    if (denom <= 0) return(1)
+    a_t <- sqrt(num / denom)}
+
+    else if (version == "myopic_altruistic") {
+      # Full expression: a* = (-1 + sqrt(1 + 8βκnsni(1 + αβns))) / [4βκnsni(1 + αβns)]
+      denom <- 4 * beta * kappa * Ns_prop * Ni_prop * (1 + alpha * beta * Ns_prop)
+      sqrt_term <- 1 + 8 * beta * kappa * Ns_prop * Ni_prop * (1 + alpha * beta * Ns_prop)
+      if (denom <= 0 || sqrt_term < 0) return(1)
+      a_t <- (-1 + sqrt(sqrt_term)) / denom
+  }
+
+  else if (version == "myopic_symmetric") {
+    # Myopic welfare maximization with symmetric infection risk: beta * a * A * ni, imposing a = A
+    mult <- beta * kappa * Ns_prop * Ni_prop
+    sqrt_term <- 1 + 4 * mult
+    if (mult <= 0 || sqrt_term < 0) return(1)
+    a_t <- (-1 + sqrt(sqrt_term)) / (2 * mult)
+  }
+  else if (version == "myopic_optimal") {
+    # New: Myopic planner’s optimal policy
+    mult <- beta * kappa * Ns_prop * Ni_prop
+    sqrt_term <- 1 + 8 * mult
+    if (mult <= 0 || sqrt_term < 0) return(1)
+    a_t <- (-1 + sqrt(sqrt_term)) / (4 * mult)
+  }
 }
 #   
 #   # Fallback if invalid version is passed
@@ -218,7 +231,7 @@ run_sir_binomial <- function(initial_state,
 
 
     Ns_prop <- Ns / parameters$pop_size
-    a_t <- a_function(Ni, Ns, parameters)#version=
+    a_t <- a_function(Ni, Ns, parameters, version= "myopic_optimal")#version=
 
     # Calculate utility of action
     u_t <- utility_function(a_t, parameters$utility_type)
