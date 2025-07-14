@@ -28,6 +28,8 @@ a_function <- function(Ni, Ns, parameters) {
   if (Ni < 1e-10 || Ns < 1e-10) return(1)
   return(max(0, min(1, a_t)))
 }
+
+##Altruistic functions
 # a_function <- function(Ni, Ns, parameters, version = "myopic_altruistic") {
 #   if (Ni < 1e-10 || Ns < 1e-10) return(1)
 # 
