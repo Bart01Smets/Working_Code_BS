@@ -46,7 +46,7 @@ parameters <- list(
 parameters$pop_size <- 1e4
 
 # define number of stochastic runs
-num_experiments <- 20
+num_experiments <- 100
 
 # define fadeout threshold
 fadeout_threshold = 100

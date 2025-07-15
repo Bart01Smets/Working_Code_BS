@@ -30,7 +30,7 @@ a_function <- function(Ni, Ns, parameters) {
 }
 
 #Altruistic functions
-a_function <- function(Ni, Ns, parameters, version = "myopic_altruistic") {
+a_function <- function(Ni, Ns, parameters, version= "health_uncertainty") {
   if (Ni < 1e-10 || Ns < 1e-10) return(1)
 
   Ni_prop <- Ni / parameters$pop_size
@@ -100,6 +100,19 @@ a_function <- function(Ni, Ns, parameters, version = "myopic_altruistic") {
     if (mult <= 0 || sqrt_term < 0) return(1)
     a_t <- (-1 + sqrt(sqrt_term)) / (4 * mult)
   }
+  else if (version == "health_uncertainty") {
+    # a* = [ - (Ns + Ni) + sqrt((Ns + Ni)^2 + 4 * βκ Ns Ni (Ns + Ni)) ] / [2 * βκ Ns Ni]
+    num_sum <- Ns_prop + Ni_prop
+    mult <- beta * kappa * Ns_prop * Ni_prop
+    denom <- 2 * mult
+    sqrt_term <- num_sum^2 + 4 * mult * num_sum
+    
+    if (denom <= 0 || sqrt_term < 0) return(1)
+    
+    a_t <- (-num_sum + sqrt(sqrt_term)) / denom
+  }
+  
+  
 }
 #   
 #   # Fallback if invalid version is passed
@@ -231,7 +244,7 @@ run_sir_binomial <- function(initial_state,
 
 
     Ns_prop <- Ns / parameters$pop_size
-    a_t <- a_function(Ni, Ns, parameters, version= "myopic_optimal")#version=
+    a_t <- a_function(Ni, Ns, parameters, version= "health_uncertainty")#version=
 
     # Calculate utility of action
     u_t <- utility_function(a_t, parameters$utility_type)
