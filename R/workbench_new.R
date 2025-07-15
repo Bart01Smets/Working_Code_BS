@@ -28,11 +28,11 @@ parameters <- list(
   sigma = 0.10,            # Determines stochastic beta_t =  N(beta,sigma)
   kappa = 197,             # Expected cost of infection (κ)
   ni0 = 0.000527,         # Initial infected population (Ni0)297
-  ns0 = 0.999447004,     # Initial susceptible population (Ns0)527
+  ns0 = 0.999347004,     # Initial susceptible population (Ns0)527 0.999447004
   nr0 = 0.000024840,                 # Initial recovered population (Nr0)
-  nd0 = 0.000000156, # Initial dead population (Nd0)
+  nd0 = 0.0006, # Initial dead population (Nd0)0.000000156,
   v = 31755,
-  alpha = 1,               # Altruism parameter (default set to no altruism)
+  alpha = 0,               # Altruism parameter (default set to no altruism)
   fx = 123,                # Exchange rate multiplier for USD conversion
   time_horizon = 1500,      # Time of shock
   utility_type = "Log",    # Utility type: "Log" or "Quadratic"
@@ -46,7 +46,7 @@ parameters <- list(
 parameters$pop_size <- 1e4
 
 # define number of stochastic runs
-num_experiments <- 100
+num_experiments <- 20
 
 # define fadeout threshold
 fadeout_threshold = 100
