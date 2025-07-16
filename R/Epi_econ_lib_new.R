@@ -8,7 +8,7 @@
 library(confintr)
 library(scales)
 
-
+#Current wefare function
 a_function <- function(Ni, Ns, parameters) {
   Ni_prop <- Ni / parameters$pop_size
   Ns_prop <- Ns / parameters$pop_size
@@ -22,18 +22,18 @@ a_function <- function(Ni, Ns, parameters) {
   
   a_t <- (-num_sum + sqrt(sqrt_term)) / denom
 }
-
-a_function <- function(Ni, Ns, parameters) {
-
-  Ni_prop <- Ni / parameters$pop_size
-  Ns_prop <- Ns / parameters$pop_size
-
-  multiplier <- parameters$beta *Ni_prop*Ns_prop*parameters$pi*parameters$v#*(1 + parameters$alpha* Ns_prop) (In case of optimal policy)
-  sqrt_term <- sqrt(1 + 8 * multiplier)
-  a_t <- (-1 + sqrt_term) / (4 * multiplier)
-  if (Ni < 1e-10 || Ns < 1e-10) return(1)
-  return(max(0, min(1, a_t)))
-}
+#Earlier welfare function
+# a_function <- function(Ni, Ns, parameters) {
+# 
+#   Ni_prop <- Ni / parameters$pop_size
+#   Ns_prop <- Ns / parameters$pop_size
+# 
+#   multiplier <- parameters$beta *Ni_prop*Ns_prop*parameters$pi*parameters$v#*(1 + parameters$alpha* Ns_prop) (In case of optimal policy)
+#   sqrt_term <- sqrt(1 + 8 * multiplier)
+#   a_t <- (-1 + sqrt_term) / (4 * multiplier)
+#   if (Ni < 1e-10 || Ns < 1e-10) return(1)
+#   return(max(0, min(1, a_t)))
+# }
 
 
 # Utility function
@@ -148,7 +148,7 @@ run_sir_binomial <- function(initial_state,
 
     # get current costs (per capita)
     scale_factor <- 1
-    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * parameters$gamma* parameters$pi*parameters$v  * Ni
+    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * new_death#Ni*parameters$gamma*parameters$pi
     SocialActivityCost <- SocialActivityCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * (Ns + Ni) * abs(u_t)
     Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size, Ni)
 
