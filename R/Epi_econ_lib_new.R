@@ -10,17 +10,23 @@ library(scales)
 
 
 a_function <- function(Ni, Ns, parameters) {
+  Ni_prop <- Ni / parameters$pop_size
+  Ns_prop <- Ns / parameters$pop_size
+  
+  num_sum <- Ns_prop + Ni_prop
+  mult <- parameters$beta * parameters$kappa * Ns_prop * Ni_prop
+  denom <- 2 * mult
+  sqrt_term <- num_sum^2 + 4 * mult * num_sum
+  
+  if (denom <= 0 || sqrt_term < 0) return(1)
+  
+  a_t <- (-num_sum + sqrt(sqrt_term)) / denom
+}
+
+a_function <- function(Ni, Ns, parameters) {
 
   Ni_prop <- Ni / parameters$pop_size
   Ns_prop <- Ns / parameters$pop_size
-
-#  num_sum <- Ns_prop + Ni_prop#prop
- # denom <- 4 * parameters$beta * parameters$kappa * Ns_prop * Ni_prop
-
-#  sqrt_term <- (num_sum)^2 + 8 * parameters$beta * parameters$kappa * Ns_prop * Ni_prop * num_sum
- # if (denom == 0 || sqrt_term < 0) return(1)
-
- # a_t <- (-num_sum + sqrt(sqrt_term)) / denom
 
   multiplier <- parameters$beta *Ni_prop*Ns_prop*parameters$pi*parameters$v#*(1 + parameters$alpha* Ns_prop) (In case of optimal policy)
   sqrt_term <- sqrt(1 + 8 * multiplier)
@@ -28,21 +34,6 @@ a_function <- function(Ni, Ns, parameters) {
   if (Ni < 1e-10 || Ns < 1e-10) return(1)
   return(max(0, min(1, a_t)))
 }
-
-##Altruistic functions
-# a_function <- function(Ni, Ns, parameters, version = "myopic_altruistic") {
-#   if (Ni < 1e-10 || Ns < 1e-10) return(1)
-# 
-#   Ni_prop <- Ni / parameters$pop_size
-#   Ns_prop <- Ns / parameters$pop_size
-#   beta <- parameters$beta
-#   kappa <- parameters$kappa
-#   alpha <- parameters$alpha
-# 
-#   num <- Ns_prop + Ni_prop
-#   mult <- beta * kappa * Ns_prop * Ni_prop
-# 
-
 
 
 # Utility function
