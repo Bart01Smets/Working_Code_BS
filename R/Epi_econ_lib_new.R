@@ -316,7 +316,7 @@ run_sir_binomial <- function(initial_state,
 
     # get current costs (per capita)
     scale_factor <- 1
-    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * parameters$v  *parameters$gamma*parameters$pi*Ni#new_death#parameters$gamma* parameters$pi*Ni
+    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * parameters$v*new_death#parameters$gamma* parameters$pi*Ni
     SocialActivityCost <- SocialActivityCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * (Ns + Ni) * abs(u_t)
     Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size, Ni)
 
