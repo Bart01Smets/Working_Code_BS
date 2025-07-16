@@ -9,77 +9,112 @@ library(confintr)
 library(scales)
 
 
-a_function <- function(Ni, Ns, parameters, Nd) {
 
+a_function <- function(Ni, Ns, parameters) {
   Ni_prop <- Ni / parameters$pop_size
   Ns_prop <- Ns / parameters$pop_size
-#Nd_prop<- Nd / parameters$pop_size
-#  num_sum <- Ns_prop + Ni_prop#prop
- # denom <- 4 * parameters$beta * parameters$kappa * Ns_prop * Ni_prop
 
-#  sqrt_term <- (num_sum)^2 + 8 * parameters$beta * parameters$kappa * Ns_prop * Ni_prop * num_sum
- # if (denom == 0 || sqrt_term < 0) return(1)
+   num_sum <- Ns_prop + Ni_prop
+      mult <- parameters$beta * parameters$kappa * Ns_prop * Ni_prop
+      denom <- 2 * mult
+      sqrt_term <- num_sum^2 + 4 * mult * num_sum
 
- # a_t <- (-num_sum + sqrt(sqrt_term)) / denom
+      if (denom <= 0 || sqrt_term < 0) return(1)
 
-# epsilon <- 1e-6
-# Nd_prop <- max(Nd / parameters$pop_size, epsilon)
+      a_t <- (-num_sum + sqrt(sqrt_term)) / denom
+    }
+#########Inclusion of new_deaths in activity attempts
+# a_function <- function(Ni, Ns, parameters) { #, Newdeaths_t
+# 
+#   Ni_prop <- Ni / parameters$pop_size
+#   Ns_prop <- Ns / parameters$pop_size
+# 
+#  # NewDeaths_prop <- (NewDeaths_t + 1) / parameters$pop_size
+# #Nd_prop <- (expected_new_deaths + 1) / parameters$pop_size
+# 
+# #  num_sum <- Ns_prop + Ni_prop#prop
+#  # denom <- 4 * parameters$beta * parameters$kappa * Ns_prop * Ni_prop
+# 
+# #  sqrt_term <- (num_sum)^2 + 8 * parameters$beta * parameters$kappa * Ns_prop * Ni_prop * num_sum
+#  # if (denom == 0 || sqrt_term < 0) return(1)
+# 
+#  # a_t <- (-num_sum + sqrt(sqrt_term)) / denom
+# 
+# # epsilon <- 1e-6
+# # Nd_prop <- max(Nd / parameters$pop_size, epsilon)
+# 
+# 
+#   multiplier <- parameters$beta*Ns_prop*parameters$v*Ni_prop*parameters$pi#NewDeaths_prop#*parameters$pi
+#   #Ni_prop*Ni_prop*parameters$pi#Nd_prop#Ni_prop*parameters$pi#Ni_prop*(1 + parameters$alpha* Ns_prop) (In case of optimal policy)
+#   sqrt_term <- sqrt(1 + 8 * multiplier)
+#   a_t <- (-1 + sqrt_term) / ((4 * multiplier))
+#   if (Ni < 1e-10 || Ns < 1e-10 ) return(1)#||Nd < 1e-10
+#   return(max(0, min(1, a_t)))
+# }
 
-
-  multiplier <- parameters$beta*Ns_prop*Ni_prop*parameters$v*parameters$pi#Ni_prop*parameters$pi#Nd_prop#Ni_prop*parameters$pi#Ni_prop*#*(1 + parameters$alpha* Ns_prop) (In case of optimal policy)
-  sqrt_term <- sqrt(1 + 8 * multiplier)
-  a_t <- (-1 + sqrt_term) / ((4 * multiplier))
-  if (Ni < 1e-10 || Ns < 1e-10 ||Nd < 1e-10) return(1)
-  return(max(0, min(1, a_t)))
-}
-
+# a_function <- function(Ni, Ns, parameters, NewDeaths_t) {
+#   Ni_prop <- Ni / parameters$pop_size
+#   Ns_prop <- Ns / parameters$pop_size
+#  # Nd_prop<- Nd/parameters$pop_size
+#   # Per capita new deaths (+1 prevents div-by-zero)
+#   NewDeaths_prop <- (NewDeaths_t) / parameters$pop_size
+#
+#   multiplier <- parameters$beta * Ns_prop * parameters$v * Ni_prop* parameters$pi#NewDeaths_prop#/parameters$gamma
+#   if (multiplier <= 0) return(1)
+#
+#   sqrt_term <- sqrt(1 + 8 * multiplier)
+#   a_t <- (-1 + sqrt_term) / (4 * multiplier)
+#
+#   if (Ni < 1e-10 || Ns < 1e-10 || NewDeaths_t < 1e-10) return(1)
+#   return(max(0, min(1, a_t)))
+# }
 # a_function <- function(Ni, Ns, parameters, Nd) {
 #   # Convert to proportions
 #   Ns_prop <- Ns / parameters$pop_size
 #   Nd_prop <- Nd / parameters$pop_size
-#   
+#
 #   # Compute multiplier (all proportions)
 #   multiplier <- parameters$beta * Ns_prop * parameters$pi * Nd_prop
-#   
+#
 #   # Add small epsilon to prevent division by zero
 #   epsilon <- 1e-8
 #   safe_multiplier <- multiplier + epsilon
-#   
+#
 #   # Compute activity using quadratic root formula
 #   sqrt_term <- sqrt(1 + 8 * safe_multiplier)
 #   a_t <- (-1 + sqrt_term) / (4 * safe_multiplier)
-#   
+#
 #   # Bound activity in [0, 1]
 #   return(max(0, min(1, a_t)))
 # }
 
-
-# 
+############## Myopic and altruistic activity attempts
+#
 # #Altruistic functions
 # a_function <- function(Ni, Ns, parameters, version= "health_uncertainty") {
 #   if (Ni < 1e-10 || Ns < 1e-10) return(1)
-# 
+#
 #   Ni_prop <- Ni / parameters$pop_size
 #   Ns_prop <- Ns / parameters$pop_size
 #   beta <- parameters$beta
 #   kappa <- parameters$kappa
 #   alpha <- parameters$alpha
-# 
+#
 #   num <- Ns_prop + Ni_prop
 #   mult <- beta * kappa * Ns_prop * Ni_prop
-# 
+#
 #   # Expression 1: Altruism case (Equation 30)
 #   if (version == "altruism") {
 #     denom <- (1 + alpha) * mult
 #     a_t <- sqrt(num / denom)
 #   }
-# 
+#
 #   # Expression 2: Optimal policy (Equation 21)
 #   else if (version == "optimal") {
 #     denom <- 2 * mult
 #     a_t <- sqrt(num / denom)
 #   }
-# 
+#
 #   # Expression 3: Quadratic root (Equation 11)
 #   else if (version == "quadratic") {
 #     sqrt_term <- 1 + 8 * mult * num
@@ -103,7 +138,7 @@ a_function <- function(Ni, Ns, parameters, Nd) {
 #     denom <- 2 * beta * Ns_prop * Ni_prop * harm_term
 #     if (denom <= 0) return(1)
 #     a_t <- sqrt(num / denom)}
-# 
+#
 #     else if (version == "myopic_altruistic") {
 #       # Full expression: a* = (-1 + sqrt(1 + 8βκnsni(1 + αβns))) / [4βκnsni(1 + αβns)]
 #       denom <- 4 * beta * kappa * Ns_prop * Ni_prop * (1 + alpha * beta * Ns_prop)
@@ -111,7 +146,7 @@ a_function <- function(Ni, Ns, parameters, Nd) {
 #       if (denom <= 0 || sqrt_term < 0) return(1)
 #       a_t <- (-1 + sqrt(sqrt_term)) / denom
 #   }
-# 
+#
 #   else if (version == "myopic_symmetric") {
 #     # Myopic welfare maximization with symmetric infection risk: beta * a * A * ni, imposing a = A
 #     mult <- beta * kappa * Ns_prop * Ni_prop
@@ -126,34 +161,19 @@ a_function <- function(Ni, Ns, parameters, Nd) {
 #     if (mult <= 0 || sqrt_term < 0) return(1)
 #     a_t <- (-1 + sqrt(sqrt_term)) / (4 * mult)
 #   }
-#   else if (version == "health_uncertainty") {
-#     # a* = [ - (Ns + Ni) + sqrt((Ns + Ni)^2 + 4 * βκ Ns Ni (Ns + Ni)) ] / [2 * βκ Ns Ni]
-#     num_sum <- Ns_prop + Ni_prop
-#     mult <- beta * kappa * Ns_prop * Ni_prop
-#     denom <- 2 * mult
-#     sqrt_term <- num_sum^2 + 4 * mult * num_sum
-# 
-#     if (denom <= 0 || sqrt_term < 0) return(1)
-# 
-#     a_t <- (-num_sum + sqrt(sqrt_term)) / denom
-#   }
-# 
-# 
+#
+#
 # }
-# 
+#
 #   # Fallback if invalid version is passed
 #   else {
 #     warning("Invalid 'version' passed to a_function(). Returning 1.")
 #     return(1)
 #   }
-# 
+#
 #   return(max(0, min(1, a_t)))
 # }
 #Expression 4: Laissez-faire (Myopic, α = 0)
-
-
-
-
 
 # a_function <- function(Ni, Ns, parameters) {
 #   if (Ni < 1e-10 || Ns < 1e-10) return(1)
@@ -258,6 +278,9 @@ run_sir_binomial <- function(initial_state,
   fx_per_capita <- parameters$fx / parameters$pop_size
   rho_plus_delta <- parameters$rho + parameters$delta
 
+  # Initialize deaths tracker for a_t
+  NewDeaths_prev <- 0
+  
   # run over times (excl the first one)
   for(i_day in times[-1]){
 
@@ -270,7 +293,7 @@ run_sir_binomial <- function(initial_state,
 
 
     Ns_prop <- Ns / parameters$pop_size
-    a_t <- a_function(Ni, Ns, parameters, Nd)#, version= "health_uncertainty")#version=
+    a_t <- a_function(Ni, Ns, parameters)#, NewDeaths_prev, version= "health_uncertainty")#version=
 
     # Calculate utility of action
     u_t <- utility_function(a_t, parameters$utility_type)
@@ -293,7 +316,7 @@ run_sir_binomial <- function(initial_state,
 
     # get current costs (per capita)
     scale_factor <- 1
-    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * parameters$gamma* parameters$pi*parameters$v  * Ni
+    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * parameters$v  *parameters$gamma*parameters$pi*Ni#new_death#parameters$gamma* parameters$pi*Ni
     SocialActivityCost <- SocialActivityCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * (Ns + Ni) * abs(u_t)
     Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size, Ni)
 
@@ -304,6 +327,10 @@ run_sir_binomial <- function(initial_state,
   #  Ni <- max(Ni, 0)
     Nr <- Nr + dNr
     Nd <- Nd + dNd
+    
+    # Update previous new deaths for next period's activity
+    NewDeaths_prev <- new_death
+    
     # keep track of the states
     states_out[i_day+1,] = c(Ns, Ni, Nr, Nd,
                              HealthCost, SocialActivityCost,
