@@ -8,42 +8,35 @@
 library(confintr)
 library(scales)
 
-#Current wefare function
 a_function <- function(Ni, Ns, parameters) {
+  # Convert to proportions
   Ni_prop <- Ni / parameters$pop_size
   Ns_prop <- Ns / parameters$pop_size
   
-  num_sum <- Ns_prop + Ni_prop
-  mult <- parameters$beta * parameters$kappa * Ns_prop * Ni_prop
-  denom <- 2 * mult
-  sqrt_term <- num_sum^2 + 4 * mult * num_sum
+  # Defensive early exit if Ni or Ns is ~0
+  if (Ni_prop < 1e-10 || Ns_prop < 1e-10) return(1)
   
-  if (denom <= 0 || sqrt_term < 0) return(1)
+  # Define terms for quadratic
+  multiplier <- parameters$beta * parameters$pi*parameters$v * Ns_prop* Ni_prop
+  num_sum <- Ns_prop+Ni_prop
+  discrim <- num_sum^2 + 4 * multiplier * num_sum
+  denom <- 2 * multiplier
   
-  a_t <- (-num_sum + sqrt(sqrt_term)) / denom
+  if (denom <= 0 || discrim < 0) return(1)
+  
+  a_t <- (-num_sum + sqrt(discrim)) / denom
+  
+  # Bound a_t to [0,1]
+  return(max(0, min(1, a_t)))
 }
-#Earlier welfare function
-# a_function <- function(Ni, Ns, parameters) {
-# 
-#   Ni_prop <- Ni / parameters$pop_size
-#   Ns_prop <- Ns / parameters$pop_size
-# 
-#   multiplier <- parameters$beta *Ni_prop*Ns_prop*parameters$pi*parameters$v#*(1 + parameters$alpha* Ns_prop) (In case of optimal policy)
-#   sqrt_term <- sqrt(1 + 8 * multiplier)
-#   a_t <- (-1 + sqrt_term) / (4 * multiplier)
-#   if (Ni < 1e-10 || Ns < 1e-10) return(1)
-#   return(max(0, min(1, a_t)))
-# }
+
 
 
 # Utility function
 utility_function <- function(a_t, utility_type) {
   if (utility_type == "Log") {
     return(log(a_t) - a_t + 1)
-  } else {
-    return(-1/2 * (1 - a_t)^2)
-  }
-}
+  } }
 
 #Calculation of effective reproduction number
 calculate_Rt <- function(R0, a_t, Ns_prop, Ni) {
@@ -64,11 +57,6 @@ get_transitions_stochastic <- function(n, prob) {
   return(sum(rbinom(n = n, size = 1, prob = prob)))
 }
 
-get_transitions_deterministic_farboodi <- function(n, prob){
-  transitions <- (n * prob)
-  return(transitions)
-}
-
 get_transitions_deterministic <- function(n, prob){
   if(length(prob)==n){
     transitions=sum(prob)
@@ -78,11 +66,10 @@ get_transitions_deterministic <- function(n, prob){
   return(transitions)
 }
 
-# to run the SIRD kernel with a for loop and binomial transistions
+# to run the SIRD kernel with a for loop and binomial transitions
 run_sir_binomial <- function(initial_state,
                              times,
                              parameters,
-                             bool_stochastic_beta = FALSE,
                              update_function = get_transitions_stochastic){ # note: the default is get_infections_determistic()
 
   # copy initial states
@@ -115,17 +102,12 @@ run_sir_binomial <- function(initial_state,
 
   # run over times (excl the first one)
   for(i_day in times[-1]){
-
-    if(bool_stochastic_beta){
-      # random noise on beta
-      beta_t <- max(0.0001,  rnorm(1, mean = parameters$beta, sd =parameters$sigma))#1
-    } else{
+    
       beta_t <- parameters$beta
-    }
-
+    
 
     Ns_prop <- Ns / parameters$pop_size
-    a_t <- a_function(Ni, Ns, parameters)#version=
+    a_t <- a_function(Ni, Ns, parameters)
 
     # Calculate utility of action
     u_t <- utility_function(a_t, parameters$utility_type)
@@ -148,7 +130,7 @@ run_sir_binomial <- function(initial_state,
 
     # get current costs (per capita)
     scale_factor <- 1
-    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * parameters$v*new_death#Ni*parameters$gamma*parameters$pi
+    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) *parameters$v*new_death
     SocialActivityCost <- SocialActivityCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * (Ns + Ni) * abs(u_t)
     Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size, Ni)
 
@@ -156,7 +138,6 @@ run_sir_binomial <- function(initial_state,
 
     Ns <- Ns + dNs
     Ni <- Ni + dNi
-  #  Ni <- max(Ni, 0)
     Nr <- Nr + dNr
     Nd <- Nd + dNd
     # keep track of the states
@@ -214,7 +195,10 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     plot_tag <- paste(plot_tag,'(all)')
   }
 
-
+  if (!dir.exists("figures_")) dir.create("figures_")  
+  
+  pdf(file = paste0("figures/", gsub("[^[:alnum:]]", "_", plot_tag), ".pdf"))
+  
   # set figure sub panels
   par(mfrow=c(3,4))
 
@@ -330,7 +314,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
 
   # Add stochastic mean
   points(1, mean(output_summary$SocialActivityCost, na.rm = TRUE), pch = 8)
-
+  
   # Add 95% confidence interval
   ci_social <- ci_mean(output_summary$SocialActivityCost)
   segments(x0 = 1, x1 = 1, y0 = ci_social$interval[1], y1 = ci_social$interval[2], col = "forestgreen", lwd = 2)
@@ -368,19 +352,17 @@ compare_sim_output <- function(output_experiments, output_deterministic,
               quantile(peak_times, 0.025, na.rm = TRUE),
               quantile(peak_times, 0.50, na.rm = TRUE),
               quantile(peak_times, 0.975, na.rm = TRUE)))
-
+dev.off()
 }
 
-run_experiments <- function(initial_state, times, parameters,
-                            bool_stochastic_beta, update_function,
+run_experiments <- function(initial_state, times, parameters, update_function,
                             num_experiments){
 
   # Set random number generator seed for reproducibility
   set.seed(parameters$rng_seed)
 
   # Run a single simulation to get the structure of the output
-  temp_output <- run_sir_binomial(initial_state, times, parameters,
-                                  bool_stochastic_beta, update_function)
+  temp_output <- run_sir_binomial(initial_state, times, parameters, update_function)
 
   # Create output_summary with an extra column for PeakTime
   output_summary <- data.frame(matrix(NA, nrow = num_experiments, ncol = ncol(temp_output) + 1))
@@ -398,7 +380,6 @@ run_experiments <- function(initial_state, times, parameters,
     output_sim <- run_sir_binomial(initial_state = initial_state,
                                    times = times,
                                    parameters = parameters,
-                                   bool_stochastic_beta = bool_stochastic_beta,
                                    update_function = update_function)
 
     # Store final row of simulation in output_summary

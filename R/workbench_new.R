@@ -36,7 +36,7 @@ parameters <- list(
   fx = 123,                # Exchange rate multiplier for USD conversion
   time_horizon = 1500,      # Time of shock
   utility_type = "Log",    # Utility type: "Log" or "Quadratic"
-  #rng_seed = 123,
+  rng_seed = 150,
   R0= (3/10+1/7)/(1/7),
   pop_size = 1e6,
   infect_thres = 1
@@ -53,7 +53,6 @@ fadeout_threshold = 100
 
 # define default parameters (for development)
 plot_tag <- 'dev'
-bool_stochastic_beta <- FALSE
 update_function <- get_transitions_stochastic
 
 # RUN DETERMINISTIC - ODE solver   ####
@@ -78,32 +77,6 @@ initial_state <- c(Ns = parameters$ns0,
 # Time sequence for pre-shock
 times <- seq(0, parameters$time_horizon, by = 1)
 
-# RUN STOCHASTIC BETA REALISATIONS  ####
-########################################
-# note: make sure the sampled beta is also used for a_t, u_t, Lambda_s and Lambda_i
-
-# get reference: deterministic model
-output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
-                                             times = times, 
-                                             parameters = parameters,
-                                             bool_stochastic_beta = FALSE,
-                                             update_function = get_transitions_deterministic)
-# Print deterministic peak infection time
-det_peak_time <- which.max(output_sim_deterministic$Ni) - 1
-cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
-
-
-output_experiments <- run_experiments(initial_state = initial_state, 
-                                      times = times, 
-                                      parameters = parameters, 
-                                      bool_stochastic_beta = TRUE, 
-                                      update_function = get_transitions_deterministic, 
-                                      num_experiments)
-
-# inspect results
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='stoch beta')
-
-
 # RUN STOCHASTIC BINIOMIAL MODEL REALISATIONS   ####
 ####################################################
 
@@ -122,8 +95,7 @@ cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
 head(output_sim_deterministic)
 output_experiments <- run_experiments(initial_state = initial_state, 
                                       times = times, 
-                                      parameters = parameters, 
-                                      bool_stochastic_beta = FALSE, 
+                                      parameters = parameters,
                                       update_function = get_transitions_stochastic, 
                                       num_experiments)
 
