@@ -17,7 +17,7 @@ a_function <- function(Ni, Ns, parameters) {
   if (Ni_prop < 1e-10 || Ns_prop < 1e-10) return(1)
   
   # Define terms for quadratic
-  multiplier <- parameters$beta * parameters$pi*parameters$v * Ns_prop* Ni_prop
+  multiplier <- parameters$beta * parameters$pi*parameters$v * Ns_prop*Ni_prop
   num_sum <- Ns_prop+Ni_prop
   discrim <- num_sum^2 + 4 * multiplier * num_sum
   denom <- 2 * multiplier
@@ -30,13 +30,11 @@ a_function <- function(Ni, Ns, parameters) {
   return(max(0, min(1, a_t)))
 }
 
-
-
 # Utility function
-utility_function <- function(a_t, utility_type) {
-  if (utility_type == "Log") {
+utility_function <- function(a_t) {
+  
     return(log(a_t) - a_t + 1)
-  } }
+  }
 
 #Calculation of effective reproduction number
 calculate_Rt <- function(R0, a_t, Ns_prop, Ni) {
@@ -56,6 +54,7 @@ get_transitions_stochastic <- function(n, prob) {
 
   return(sum(rbinom(n = n, size = 1, prob = prob)))
 }
+
 
 get_transitions_deterministic <- function(n, prob){
   if(length(prob)==n){
@@ -98,7 +97,6 @@ run_sir_binomial <- function(initial_state,
 
   # compute some results only once
   fx_per_capita <- parameters$fx / parameters$pop_size
-  rho_plus_delta <- parameters$rho + parameters$delta
 
   # run over times (excl the first one)
   for(i_day in times[-1]){
@@ -110,28 +108,31 @@ run_sir_binomial <- function(initial_state,
     a_t <- a_function(Ni, Ns, parameters)
 
     # Calculate utility of action
-    u_t <- utility_function(a_t, parameters$utility_type)
-
-    # Calculate transitions
-    new_infections <- update_function(Ns, prob = beta_t * a_t^2 * Ni/parameters$pop_size)
-    new_recoveries <- update_function(Ni, prob = parameters$gamma)
-    new_death      <- update_function(new_recoveries, prob = parameters$pi)
-
-    if((Ni - new_recoveries) < parameters$infect_thres){
-      new_recoveries = Ni
-      new_infections = 0
-    }
+    u_t <- utility_function(a_t)
+    
+    p_infect <- 1 - exp(- beta_t * a_t^2 * Ni / parameters$pop_size)
+    p_recover <- 1 - exp(-parameters$gamma)
+    p_death <- 1 - exp(- parameters$pi)
+    
+    new_infections <- update_function(Ns, prob = p_infect)
+    new_recoveries <- update_function(Ni, prob = p_recover)
+    new_death      <- update_function(new_recoveries, prob = p_death)
 
     # get health transitions
     dNs <- -new_infections
     dNi <- new_infections - new_recoveries
     dNr <- new_recoveries - new_death
     dNd <- new_death
+    
+    if((Ni - new_recoveries) < parameters$infect_thres){
+      new_recoveries = Ni
+      new_infections = 0
+    }
 
     # get current costs (per capita)
     scale_factor <- 1
-    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) *parameters$v*new_death
-    SocialActivityCost <- SocialActivityCost+ scale_factor* fx_per_capita * exp(-rho_plus_delta * i_day) * (Ns + Ni) * abs(u_t)
+    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-parameters$rho * i_day) *parameters$v*new_death
+    SocialActivityCost <- SocialActivityCost+ scale_factor* fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
     Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size, Ni)
 
     # Update states
@@ -195,12 +196,12 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     plot_tag <- paste(plot_tag,'(all)')
   }
 
-  if (!dir.exists("figures_")) dir.create("figures_")  
-  
+  if (!dir.exists("figures")) dir.create("figures")
+
   pdf(file = paste0("figures/", gsub("[^[:alnum:]]", "_", plot_tag), ".pdf"))
-  
+
   # set figure sub panels
-  par(mfrow=c(3,4))
+  #par(mfrow=c(3,4))
 
   # explore costs
   output_cost <- output_summary[,grepl('Cost',names(output_summary))]
@@ -274,11 +275,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   mean_social <- mean(output_summary$SocialActivityCost, na.rm = TRUE)
   ci_social <- ci_mean(output_summary$SocialActivityCost)$interval
 
-  # Print summary (formatted like compare_sim_output)
-  cat("Stochastic Summary (from boxplot data):\n")
-  cat(sprintf("Health Cost: %.0f [%.0f, %.0f]\n", mean_health, ci_health[1], ci_health[2]))
-  cat(sprintf("Social Activity Cost: %.0f [%.0f, %.0f]\n", mean_social, ci_social[1], ci_social[2]))
-
+ 
 
   # Health Cost boxplot with mean, 95% CI, and deterministic point
   boxplot(output_summary$HealthCost,
@@ -391,7 +388,7 @@ run_experiments <- function(initial_state, times, parameters, update_function,
     # Store full simulation output
     output_all[i_exp, , ] <- as.matrix(output_sim)
   }
-
   return(list(output_summary = output_summary,
               output_all = output_all))
 }
+
