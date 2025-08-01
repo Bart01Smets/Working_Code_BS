@@ -130,9 +130,8 @@ run_sir_binomial <- function(initial_state,
     }
 
     # get current costs (per capita)
-    scale_factor <- 1
-    HealthCost <-  HealthCost+ scale_factor* fx_per_capita * exp(-parameters$rho * i_day) *parameters$v*new_death
-    SocialActivityCost <- SocialActivityCost+ scale_factor* fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
+    HealthCost <-  HealthCost+  fx_per_capita * exp(-parameters$rho * i_day) *parameters$v*new_death
+    SocialActivityCost <- SocialActivityCost+ fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
     Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size, Ni)
 
     # Update states
@@ -293,7 +292,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
 
   segments(x0 = 1, x1 = 1, y0 = ci_health$interval[1], y1 = ci_health$interval[2], col = "forestgreen", lwd = 2)
 
-  # Add empirical 95% quantile interval (e.g., 2.5% - 97.5%)
+  # Add 95% quantile interval (e.g., 2.5% - 97.5%)
   quant_health <- quantile(output_summary$HealthCost, probs = c(0.025, 0.975), na.rm = TRUE)
   segments(x0 = 1.1, x1 = 1.1, y0 = quant_health[1], y1 = quant_health[2], col = "blue", lwd = 2, lty = 2)
   

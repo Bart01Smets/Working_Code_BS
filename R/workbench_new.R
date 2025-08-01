@@ -188,6 +188,7 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 #  write.csv(sensitivity_results, paste0("sensitivity_", sensitivity_target, ".csv"), row.names = FALSE)
 # 
 # # # Plot
+# baseline_value <- parameters[[sensitivity_target]]
 # # library(ggplot2)
 # # ggplot(sensitivity_results, aes(x = Value, y = TotalCost, color = Type)) +
 # #   geom_line() +
@@ -199,12 +200,15 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 # #   scale_color_manual(values = c("Deterministic" = "black", "Stochastic" = "steelblue"))
 # library(ggplot2)
 # 
+# 
 # ggplot(sensitivity_results, aes(x = Value, y = TotalCost, color = Type)) +
 #   # 95% quantile ribbon for stochastic only
 #   geom_ribbon(data = subset(sensitivity_results, Type == "Stochastic"),
 #               aes(x = Value, ymin = Q025, ymax = Q975, fill ="95% Quantile Band"),
 #               alpha = 0.2, inherit.aes = FALSE) +
 # 
+#  # Add vertical line at baseline
+# geom_vline(xintercept = baseline_value, linetype = "dashed", color = "red", size = 1, alpha = 0.8) +
 #   # Lines and points
 #   geom_line() +
 #   geom_point(size = 2) +
