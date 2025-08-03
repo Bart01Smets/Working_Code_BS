@@ -37,7 +37,6 @@ parameters <- list(
   pop_size = 1e4,
   infect_thres = 1
 )
-parameters$pop_size <- 10000
 
 
 # define number of stochastic runs
@@ -156,7 +155,6 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 #     initial_state = initial_state,
 #     times = times,
 #     parameters = parameters,
-#     bool_stochastic_beta = FALSE,
 #     update_function = get_transitions_stochastic,
 #     num_experiments = num_experiments
 #   )
