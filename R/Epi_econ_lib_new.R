@@ -274,7 +274,76 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   mean_social <- mean(output_summary$SocialActivityCost, na.rm = TRUE)
   ci_social <- ci_mean(output_summary$SocialActivityCost)$interval
 
- 
+  # Print summary (formatted like compare_sim_output)
+  cat("Stochastic Summary (from boxplot data):\n")
+  cat(sprintf("Health Cost: %.0f [%.0f, %.0f]\n", mean_health, ci_health[1], ci_health[2]))
+  cat(sprintf("Social Activity Cost: %.0f [%.0f, %.0f]\n", mean_social, ci_social[1], ci_social[2]))
+  
+  
+  
+  ### Credible and confidence interval values calculation ###
+  # 1. Health Cost Credible Interval % differences
+  health_quant <- quantile(output_summary$HealthCost, probs = c(0.025, 0.975), na.rm = TRUE)
+  pct_health_upper = 100 * (health_quant[2] - mean_health) / mean_health
+  pct_health_lower = 100 * (mean_health - health_quant[1]) / mean_health
+  
+  # 2. Activity Cost Credible Interval % differences
+  mean_activity_cost <- mean(output_summary$SocialActivityCost, na.rm = TRUE)
+  activity_quant <- quantile(output_summary$SocialActivityCost, probs = c(0.025, 0.975), na.rm = TRUE)
+  pct_activity_upper = 100 * (activity_quant[2] - mean_activity_cost) / mean_activity_cost
+  pct_activity_lower = 100 * (mean_activity_cost - activity_quant[1]) / mean_activity_cost
+  
+  # 3. Health & Activity cost mean vs deterministic
+  health_det <- output_deterministic[nrow(output_deterministic), "HealthCost"]
+  activity_det <- output_deterministic[nrow(output_deterministic), "SocialActivityCost"]
+  pct_health_mean_diff = 100 * (health_det - mean_health) / health_det
+  pct_activity_mean_diff = 100 * (activity_det - mean_activity_cost) / activity_det
+  
+  
+  # Activity & Infectives at Peak Infection #
+  
+  # Peak infection time (in deterministic)
+  t_peak <- which.max(output_deterministic$Ni)
+  
+  # From stochastic output: activity and Ni across sims at t_peak
+  a_vals <- output_all[, t_peak, "a_t"]
+  ni_vals <- output_all[, t_peak, "Ni"]
+  
+  # Means
+  a_mean <- mean(a_vals, na.rm = TRUE)
+  ni_mean <- mean(ni_vals, na.rm = TRUE)
+  
+  # Credible intervals
+  a_q <- quantile(a_vals, probs = c(0.025, 0.975), na.rm = TRUE)
+  ni_q <- quantile(ni_vals, probs = c(0.025, 0.975), na.rm = TRUE)
+  
+  # Deterministic values
+  a_det <- output_deterministic[t_peak, "a_t"]
+  ni_det <- output_deterministic[t_peak, "Ni"]
+  
+  # Credible interval width (% from mean)
+  pct_a_upper = 100 * (a_q[2] - a_mean) / a_mean
+  pct_a_lower = 100 * (a_mean - a_q[1]) / a_mean
+  pct_ni_upper = 100 * (ni_q[2] - ni_mean) / ni_mean
+  pct_ni_lower = 100 * (ni_mean - ni_q[1]) / ni_mean
+  
+  # Mean vs deterministic
+  pct_a_mean_diff = 100 * (a_det - a_mean) / a_det
+  pct_ni_mean_diff = 100 * (ni_det - ni_mean) / ni_det
+  
+  # ==== OUTPUT ====
+  cat("\nCOST DIFFERENCES (BOXPLOT METRICS)\n")
+  cat(sprintf("Health Cost – Credible Interval: +%.2f%% / -%.2f%%\n", pct_health_upper, pct_health_lower))
+  cat(sprintf("Activity Cost – Credible Interval: +%.2f%% / -%.2f%%\n", pct_activity_upper, pct_activity_lower))
+  cat(sprintf("Health Cost – Stochastic vs Det: %.2f%%\n", pct_health_mean_diff))
+  cat(sprintf("Activity Cost – Stochastic vs Det: %.2f%%\n", pct_activity_mean_diff))
+  
+  cat("\nPEAK-TIME DIFFERENCES (Ni and a_t at peak Ni)\n")
+  cat(sprintf("Activity a(t) – Credible Interval: +%.2f%% / -%.2f%%\n", pct_a_upper, pct_a_lower))
+  cat(sprintf("Infectives Ni – Credible Interval: +%.2f%% / -%.2f%%\n", pct_ni_upper, pct_ni_lower))
+  cat(sprintf("Activity a(t) – Stochastic vs Det: %.2f%%\n", pct_a_mean_diff))
+  cat(sprintf("Infectives Ni – Stochastic vs Det: %.2f%%\n", pct_ni_mean_diff))
+  
 
   # Health Cost boxplot with mean, 95% CI, and deterministic point
   boxplot(output_summary$HealthCost,
