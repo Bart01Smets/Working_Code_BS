@@ -9,6 +9,7 @@ library(confintr)
 library(scales)
 
 a_function <- function(Ni, Ns, parameters) {
+  if (isTRUE(parameters$bool_regular_sird)) return(1)  # Always full activity
   # Convert to proportions
   Ni_prop <- Ni / parameters$pop_size
   Ns_prop <- Ns / parameters$pop_size
@@ -30,11 +31,57 @@ a_function <- function(Ni, Ns, parameters) {
   return(max(0, min(1, a_t)))
 }
 
+# a_function_cost_minimizing <- function(Ns, Ni, t, parameters) {
+#   pop_size <- parameters$pop_size
+#   Ns_prop <- Ns / pop_size
+#   Ni_prop <- Ni / pop_size
+#   
+#   if (Ni <= 1e-12 || Ns <= 1e-12) return(1)
+#   
+#   beta <- parameters$beta
+#   gamma <- parameters$gamma
+#   pi <- parameters$pi
+#   v <- parameters$v
+#   rho <- parameters$rho
+#   
+#   fx_per_capita <- parameters$fx / pop_size
+#   discount <- exp(-rho * t)
+#   
+#   utility_function <- function(a) {
+#     if (parameters$utility_type == "Log") return(log(a) - a + 1)
+#     else return(-0.5 * (1 - a)^2)
+#   }
+#   
+#   total_cost_fn <- function(a) {
+#     # Compute probabilities
+#     p_infect <- 1 - exp(- beta * a^2 * Ni / pop_size)
+#     p_recover <- 1 - exp(-gamma)
+#     p_death <- 1 - exp(-pi)
+#     
+#     # Expected transitions
+#     E_deaths <- Ns * p_infect * p_recover * p_death
+#     
+#     # Cost components
+#     HC <- fx_per_capita * discount * v * E_deaths
+#     SAC <- fx_per_capita * discount * abs(utility_function(a)) * (Ns + Ni)
+#     
+#     return(HC + SAC)
+#   }
+#   
+#   res <- optimize(total_cost_fn, lower = 0.01, upper = 1, tol = 1e-4)
+#   return(res$minimum)
+# }
+
+
 # Utility function
 utility_function <- function(a_t) {
-  
+  #if (utility_type == "Log") {
+  if (isTRUE(parameters$bool_regular_sird)) return(0)
     return(log(a_t) - a_t + 1)
+  #} else {
+  #  return(-1/2 * (1 - a_t)^2)
   }
+
 
 #Calculation of effective reproduction number
 calculate_Rt <- function(R0, a_t, Ns_prop, Ni) {
@@ -69,8 +116,9 @@ get_transitions_deterministic <- function(n, prob){
 run_sir_binomial <- function(initial_state,
                              times,
                              parameters,
-                             update_function = get_transitions_stochastic){ # note: the default is get_infections_determistic()
-
+                             bool_stochastic_beta = FALSE,
+                             update_function = get_transitions_stochastic){
+  
   # copy initial states
   states <- data.frame(t(initial_state))
 
@@ -101,22 +149,42 @@ run_sir_binomial <- function(initial_state,
   # run over times (excl the first one)
   for(i_day in times[-1]){
     
-      beta_t <- parameters$beta
-    
+    #  beta_t <- parameters$beta
+      if(bool_stochastic_beta){
+        beta_t <- max(0.0001, rnorm(1, mean = parameters$beta, sd = parameters$sigma))
+      } else {
+        beta_t <- parameters$beta
+      }
+      
 
     Ns_prop <- Ns / parameters$pop_size
-    a_t <- a_function(Ni, Ns, parameters)
-
+   # a_t <- a_function(Ni, Ns, parameters)
+    if (isTRUE(parameters$bool_daily_cost_minimizing)) {
+      a_t <- a_function_cost_minimizing(Ns, Ni, i_day, parameters)
+    } else {
+      a_t <- a_function(Ni, Ns, parameters)
+    }
+    
     # Calculate utility of action
     u_t <- utility_function(a_t)
+    # Adjust death rate if over healthcare capacity
+    if (!is.null(parameters$healthcare_capacity) && Ni > parameters$healthcare_capacity) {
+      pi_effective <- parameters$pi * parameters$excess_mortality_multiplier
+    } else {
+      pi_effective <- parameters$pi
+    }
+    
+    
     
     p_infect <- 1 - exp(- beta_t * a_t^2 * Ni / parameters$pop_size)
     p_recover <- 1 - exp(-parameters$gamma)
-    p_death <- 1 - exp(- parameters$pi)
+    #p_death <- 1 - exp(- parameters$pi)
+    p_death <- 1 - exp(- pi_effective)
     
     new_infections <- update_function(Ns, prob = p_infect)
     new_recoveries <- update_function(Ni, prob = p_recover)
-    new_death      <- update_function(new_recoveries, prob = p_death)
+    new_death <- update_function(new_recoveries, prob = p_death)
+   # new_death      <- update_function(new_recoveries, prob = p_death)
 
     # get health transitions
     dNs <- -new_infections
@@ -130,8 +198,13 @@ run_sir_binomial <- function(initial_state,
     }
 
     # get current costs (per capita)
-    HealthCost <-  HealthCost+  fx_per_capita * exp(-parameters$rho * i_day) *parameters$v*new_death
-    SocialActivityCost <- SocialActivityCost+ fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
+    if (!isTRUE(parameters$bool_regular_sird)) {
+      HealthCost <-  HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
+      SocialActivityCost <- SocialActivityCost + fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
+    }
+    
+    # HealthCost <-  HealthCost+  fx_per_capita * exp(-parameters$rho * i_day) *parameters$v*new_death
+    # SocialActivityCost <- SocialActivityCost+ fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
     Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size, Ni)
 
     # Update states
@@ -420,14 +493,16 @@ compare_sim_output <- function(output_experiments, output_deterministic,
 dev.off()
 }
 
-run_experiments <- function(initial_state, times, parameters, update_function,
-                            num_experiments){
-
+run_experiments <- function(initial_state, times, parameters,
+                            bool_stochastic_beta, update_function,
+                            num_experiments)
+{
+  
   # Set random number generator seed for reproducibility
   set.seed(parameters$rng_seed)
 
   # Run a single simulation to get the structure of the output
-  temp_output <- run_sir_binomial(initial_state, times, parameters, update_function)
+  temp_output <- run_sir_binomial(initial_state, times, parameters, bool_stochastic_beta, update_function)
 
   # Create output_summary with an extra column for PeakTime
   output_summary <- data.frame(matrix(NA, nrow = num_experiments, ncol = ncol(temp_output) + 1))
@@ -445,8 +520,9 @@ run_experiments <- function(initial_state, times, parameters, update_function,
     output_sim <- run_sir_binomial(initial_state = initial_state,
                                    times = times,
                                    parameters = parameters,
+                                   bool_stochastic_beta = bool_stochastic_beta,
                                    update_function = update_function)
-
+    
     # Store final row of simulation in output_summary
     output_summary[i_exp, 1:ncol(temp_output)] <- output_sim[nrow(output_sim), ]
 
