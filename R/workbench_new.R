@@ -2,7 +2,6 @@
 # Workbench script for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic modelling
-# - Still includes option for both binomial transitions and stochastic beta
 ######################################################### #
 getwd()
 
