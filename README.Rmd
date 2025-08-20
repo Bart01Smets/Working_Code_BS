@@ -1,0 +1,24 @@
+writeLines(
+'---
+output: github_document
+---
+
+# EPI-ECON Modeling Project
+
+This repository contains deterministic and stochastic simulations for epidemic-economic modeling based on the SIRD framework, inspired by Farboodi et al. (2020).
+
+## Features
+
+- Deterministic and stochastic SIR simulations
+- Behavioral policy modeling (optimal vs. laissez-faire)
+- Economic cost tracking (health, activity, total)
+- Binomial transitions and stochastic beta realizations
+- Validation against reference `.rds` files
+
+## Getting Started
+
+1. Open `workbench XX.R` in RStudio
+2. Make sure `epi_econ_lib_13.R` is sourced
+3. Run the deterministic model:
+```r
+output <- run_sir_binomial(initial_state, times, parameters, ...)

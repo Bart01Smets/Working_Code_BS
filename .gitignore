@@ -1,43 +1,12 @@
-# Ignore everything by default
-*
-
-# --- KEEP LIST BELOW ---
-
-# ✅ Keep everything in Epi_econ_project/
-!Epi_econ_project/
-!Epi_econ_project/**
-
-# ✅ Unignore the R folder itself, so Git will look inside it
+# --- KEEP EVERYTHING IN R ---
 !R/
 
-# ✅ Keep specific R scripts in R/
-
-epi_econ_lib\ \(4\).R
-epi_econ_lib_13.R
-workbench\ \(3\).R
-workbench\ 19.R
-
-
-!R/workbench_replica.R
-!R/epi_econ_lib_replica.R
-!R/workbench_new.R
-!R/epi_econ_lib_new.R
-!R/workbench_307.R
-!R/epi_econ_lib_307.R
-
-# ✅ Keep the .gitignore itself
-!.gitignore
-
 # --- SYSTEM/UTILITY IGNORES ---
-
-# R and OS junk
 .Rproj.user/
 .Rhistory
 .RData
 .Ruserdata
 .DS_Store
-
-# Output/temporary data
 *.rds
 *.html
 *.log
