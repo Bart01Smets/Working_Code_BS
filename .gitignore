@@ -1,13 +1,11 @@
-# --- KEEP EVERYTHING IN R ---
-!R/
 
-# --- SYSTEM/UTILITY IGNORES ---
-.Rproj.user/
-.Rhistory
-.RData
-.Ruserdata
-.DS_Store
-*.rds
-*.html
-*.log
-output/
+# Ignore everything
+*
+
+# Keep only the scenarios folder (and its contents)
+!scenarios/
+!scenarios/**
+
+# Keep this file
+!.gitignore
+.Rproj.user
