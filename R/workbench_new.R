@@ -2,7 +2,6 @@
 # Workbench script for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic modelling
-# - Still includes option for both binomial transitions and stochastic beta
 ######################################################### #
 getwd()
 
@@ -222,5 +221,3 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 # # ==============================
 # # SENSITIVITY ANALYSIS ENDS HERE
 # # ==============================
-
-
