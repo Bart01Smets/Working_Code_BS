@@ -12,7 +12,7 @@ setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 rm(list=ls())
 
 # load functions
-source("scenarios/epi_econ_lib_new.R")
+source("scenarios/Epi_econ_lib_new.R")
 
 # SETUP   ####
 ####################
@@ -39,7 +39,7 @@ parameters <- list(
 
 
 # define number of stochastic runs
-num_experiments <- 500
+num_experiments <- 100
 
 # define fadeout threshold
 fadeout_threshold = 100
