@@ -2,7 +2,6 @@
 # Workbench script for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic modelling
-# - Still includes option for both binomial transitions and stochastic beta
 ######################################################### #
 getwd()
 
@@ -13,7 +12,7 @@ setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 rm(list=ls())
 
 # load functions
-source("R/epi_econ_lib_new_AltAct.R")
+source("scenarios/epi_econ_lib_AltAct.R")
 
 # SETUP   ####
 ####################
@@ -42,7 +41,7 @@ parameters <- list(
   bool_daily_cost_minimizing = FALSE,
   # healthcare_capacity = ,
   #  excess_mortality_multiplier = NULL
-  a_rule="rt_threshold" # or "farboodi_lf", "auld_lf", "philipson", "gans", "acemoglu", "rt_threshold", "fenichel_lf"
+  a_rule="acemoglu" # or "farboodi_lf", "auld_lf", "philipson", "gans", "acemoglu", "rt_threshold", "fenichel_lf"
   
 
 )

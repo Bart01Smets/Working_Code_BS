@@ -2,7 +2,6 @@
 # Workbench script for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic modelling
-# - Still includes option for both binomial transitions and stochastic beta
 ######################################################### #
 getwd()
 
@@ -13,7 +12,7 @@ setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 rm(list=ls())
 
 # load functions
-source("R/epi_econ_lib_new.R")
+source("scenarios/epi_econ_lib_age_het.R")
 
 # SETUP   ####
 ####################
@@ -39,7 +38,6 @@ parameters <- list(
   utility_type = "Log",
   sigma = 0.19,
   bool_regular_sird = FALSE,  # NEW FLAG
-  bool_daily_cost_minimizing = FALSE,
   # --- NEW: age heterogeneity toggle & settings ---
   bool_age_heterogeneity = TRUE,        # master toggle
   age_groups = c("Y","O"),               # labels for clarity
