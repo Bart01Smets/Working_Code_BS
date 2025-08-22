@@ -2,7 +2,6 @@
 # Workbench script for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic modelling
-# - Still includes option for both binomial transitions and stochastic beta
 ######################################################### #
 getwd()
 
@@ -13,7 +12,7 @@ setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 rm(list=ls())
 
 # load functions
-source("R/epi_econ_lib_new.R")
+source("scenarios/epi_econ_lib_extinction+distr.R")
 
 # SETUP   ####
 ####################
@@ -46,7 +45,7 @@ parameters <- list(
 
 parameters$pop_size<-1e4
 # define number of stochastic runs
-num_experiments <- 500
+num_experiments <- 100
 
 # define fadeout threshold
 fadeout_threshold = 100

@@ -13,7 +13,7 @@ setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 rm(list=ls())
 
 # load functions
-source("R/epi_econ_lib_new_par_uncert.R")
+source("scenarios/epi_econ_lib_par_uncert.R")
 
 # SETUP   ####
 ####################
@@ -38,15 +38,13 @@ parameters <- list(
   infect_thres = 1,
   utility_type = "Log",
   sigma = 0.19,
-  bool_regular_sird = FALSE,  # NEW FLAG
+  bool_regular_sird = FALSE,  
   bool_daily_cost_minimizing = FALSE
-  # healthcare_capacity = ,
-  #  excess_mortality_multiplier = NULL
 )
 
 parameters$pop_size<-1e4
 # define number of stochastic runs
-num_experiments <- 10
+num_experiments <- 100
 
 # define fadeout threshold
 fadeout_threshold = 100
@@ -126,97 +124,97 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 # inspect results excl fadeout
 compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
                    fadeout_threshold = fadeout_threshold)
-# ==============================
-# Dual-uncertainty + PSA (single PDF output)
-# ==============================
-
-if (!dir.exists("figures")) dir.create("figures")
-library(ggplot2)
-
-# 1) PSA pooled trajectories (parameter uncertainty + stochasticity)
-psa_output_all <- run_psa_full(
-  initial_state        = initial_state,
-  times                = times,
-  base_parameters      = parameters,
-  n_param_draws        = 10,   # start small; bump up later
-  n_stoch              = 5,
-  bool_stochastic_beta = TRUE, # or FALSE if you want binomial-only
-  update_function      = get_transitions_stochastic
-)
-
-# 2) PSA summary tables (per-draw means & bands) for diagnostics
-psa <- run_psa(
-  initial_state        = initial_state,
-  times                = times,
-  base_parameters      = parameters,
-  n_param_draws        = 30,   # bump up after testing
-  n_stoch              = 10,
-  bool_stochastic_beta = TRUE,
-  update_function      = get_transitions_stochastic
-)
-
-# Optional: save the numeric summaries
-write.csv(psa$psa_means, "figures/psa_means.csv", row.names = FALSE)
-write.csv(psa$psa_bands, "figures/psa_bands.csv", row.names = FALSE)
-
-# 3) Multi-page PDF: key PSA scatter + dual-uncertainty bands
-pdf("figures/uncertainty_report.pdf", width = 8, height = 5)
-
-# Page 1: Total cost vs R0 (per-draw mean)
-print(
-  ggplot(psa$psa_means, aes(x = R0, y = TotalCost)) +
-    geom_point(alpha = 0.6) +
-    geom_smooth(method = "lm", se = TRUE) +
-    labs(title = "PSA: Total Cost vs R0 (per-draw mean across sims)",
-         x = "Sampled R0", y = "Total Cost (per capita)") +
-    theme_minimal()
-)
-
-# Page 2: Dual uncertainty bands — TotalCost
-print(
-  plot_dual_uncertainty_bands(
-    baseline_output_all = output_experiments$output_all,
-    psa_output_all      = psa_output_all,
-    deterministic_df    = output_sim_deterministic,
-    var                 = "TotalCost",
-    title               = "Dual Uncertainty Bands — Total Cost"
-  )
-)
-
-# Page 3: Dual uncertainty bands — HealthCost
-print(
-  plot_dual_uncertainty_bands(
-    baseline_output_all = output_experiments$output_all,
-    psa_output_all      = psa_output_all,
-    deterministic_df    = output_sim_deterministic,
-    var                 = "HealthCost",
-    title               = "Dual Uncertainty Bands — Health Cost"
-  )
-)
-
-# Page 4: Dual uncertainty bands — SocialActivityCost
-print(
-  plot_dual_uncertainty_bands(
-    baseline_output_all = output_experiments$output_all,
-    psa_output_all      = psa_output_all,
-    deterministic_df    = output_sim_deterministic,
-    var                 = "SocialActivityCost",
-    title               = "Dual Uncertainty Bands — Social Activity Cost"
-  )
-)
-
-# Page 5: Dual uncertainty bands — Ni
-print(
-  plot_dual_uncertainty_bands(
-    baseline_output_all = output_experiments$output_all,
-    psa_output_all      = psa_output_all,
-    deterministic_df    = output_sim_deterministic,
-    var                 = "Ni",
-    title               = "Dual Uncertainty Bands — Infectives (Ni)"
-  )
-)
-
-dev.off()
+# # ==============================
+# # Dual-uncertainty + PSA (single PDF output)
+# # ==============================
+# 
+# if (!dir.exists("figures")) dir.create("figures")
+# library(ggplot2)
+# 
+# # 1) PSA pooled trajectories (parameter uncertainty + stochasticity)
+# psa_output_all <- run_psa_full(
+#   initial_state        = initial_state,
+#   times                = times,
+#   base_parameters      = parameters,
+#   n_param_draws        = 10,   # start small; bump up later
+#   n_stoch              = 5,
+#   bool_stochastic_beta = TRUE, # or FALSE if you want binomial-only
+#   update_function      = get_transitions_stochastic
+# )
+# 
+# # 2) PSA summary tables (per-draw means & bands) for diagnostics
+# psa <- run_psa(
+#   initial_state        = initial_state,
+#   times                = times,
+#   base_parameters      = parameters,
+#   n_param_draws        = 30,   # bump up after testing
+#   n_stoch              = 10,
+#   bool_stochastic_beta = TRUE,
+#   update_function      = get_transitions_stochastic
+# )
+# 
+# # Optional: save the numeric summaries
+# write.csv(psa$psa_means, "figures/psa_means.csv", row.names = FALSE)
+# write.csv(psa$psa_bands, "figures/psa_bands.csv", row.names = FALSE)
+# 
+# # 3) Multi-page PDF: key PSA scatter + dual-uncertainty bands
+# pdf("figures/uncertainty_report.pdf", width = 8, height = 5)
+# 
+# # Page 1: Total cost vs R0 (per-draw mean)
+# print(
+#   ggplot(psa$psa_means, aes(x = R0, y = TotalCost)) +
+#     geom_point(alpha = 0.6) +
+#     geom_smooth(method = "lm", se = TRUE) +
+#     labs(title = "PSA: Total Cost vs R0 (per-draw mean across sims)",
+#          x = "Sampled R0", y = "Total Cost (per capita)") +
+#     theme_minimal()
+# )
+# 
+# # Page 2: Dual uncertainty bands — TotalCost
+# print(
+#   plot_dual_uncertainty_bands(
+#     baseline_output_all = output_experiments$output_all,
+#     psa_output_all      = psa_output_all,
+#     deterministic_df    = output_sim_deterministic,
+#     var                 = "TotalCost",
+#     title               = "Dual Uncertainty Bands — Total Cost"
+#   )
+# )
+# 
+# # Page 3: Dual uncertainty bands — HealthCost
+# print(
+#   plot_dual_uncertainty_bands(
+#     baseline_output_all = output_experiments$output_all,
+#     psa_output_all      = psa_output_all,
+#     deterministic_df    = output_sim_deterministic,
+#     var                 = "HealthCost",
+#     title               = "Dual Uncertainty Bands — Health Cost"
+#   )
+# )
+# 
+# # Page 4: Dual uncertainty bands — SocialActivityCost
+# print(
+#   plot_dual_uncertainty_bands(
+#     baseline_output_all = output_experiments$output_all,
+#     psa_output_all      = psa_output_all,
+#     deterministic_df    = output_sim_deterministic,
+#     var                 = "SocialActivityCost",
+#     title               = "Dual Uncertainty Bands — Social Activity Cost"
+#   )
+# )
+# 
+# # Page 5: Dual uncertainty bands — Ni
+# print(
+#   plot_dual_uncertainty_bands(
+#     baseline_output_all = output_experiments$output_all,
+#     psa_output_all      = psa_output_all,
+#     deterministic_df    = output_sim_deterministic,
+#     var                 = "Ni",
+#     title               = "Dual Uncertainty Bands — Infectives (Ni)"
+#   )
+# )
+# 
+# dev.off()
 
 # 
 # # ==============================
@@ -228,13 +226,13 @@ dev.off()
 # # Define parameters and their sensitivity ranges
 # param_ranges <- list(
 #   v = seq(10000, 50000, length.out = 10),
-#   beta = seq(0.2, 0.6, length.out = 10),
+#   beta = seq(0.1, 0.7, length.out = 10),
 #   pi = seq(0.001, 0.01, length.out = 10),
 #   gamma = seq(1/14, 1/3, length.out = 10),
-#   ni0 = seq(0.0005, 0.01, length.out = 10),
-#   ns0 = seq(0.85, 0.999, length.out = 10),
+#   ni0 = seq(0.0001, 0.05, length.out = 10),
+#   # ns0 = seq(0.85, 0.999, length.out = 10),
 #   pop_size = round(seq(10000, 100000, length.out = 10)),
-#   time_horizon = seq(250, 2500, length.out = 10),
+#   time_horizon = seq(200, 2000, length.out = 10),
 #   rho = seq(0, 100/365, length.out = 10)
 # )
 # 
@@ -244,23 +242,23 @@ dev.off()
 # # Loop over each parameter
 # for (sensitivity_target in names(param_ranges)) {
 #   cat("Running sensitivity for:", sensitivity_target, "\n")
-#   
+# 
 #   param_grid <- data.frame(value = param_ranges[[sensitivity_target]])
 #   colnames(param_grid) <- sensitivity_target
 #   baseline_value <- parameters[[sensitivity_target]]
 #   sensitivity_results <- data.frame()
-#   
+# 
 #   for (i in 1:nrow(param_grid)) {
 #     cat("  Scenario", i, "of", nrow(param_grid), "\n")
-#     
+# 
 #     # Update parameter
 #     parameters[[sensitivity_target]] <- param_grid[[sensitivity_target]][i]
-#     
+# 
 #     # Recalculate R0 if needed
 #     if (sensitivity_target == "beta" || sensitivity_target == "gamma") {
 #       parameters$R0 <- parameters$beta / parameters$gamma
 #     }
-#     
+# 
 #     # Initial state
 #     initial_state <- c(Ns = parameters$ns0,
 #                        Ni = parameters$ni0,
@@ -270,9 +268,9 @@ dev.off()
 #                        SocialActivityCost = 0,
 #                        TotalCost = 0,
 #                        a_t = NA, u_t = NA, Rt = NA)
-#     
+# 
 #     times <- seq(0, parameters$time_horizon, by = 1)
-#     
+# 
 #     # Deterministic run
 #     output_det <- run_sir_binomial(
 #       initial_state = initial_state,
@@ -281,7 +279,7 @@ dev.off()
 #       update_function = get_transitions_deterministic
 #     )
 #     total_cost_det <- output_det[nrow(output_det), "TotalCost"]
-#     
+# 
 #     # Stochastic run
 #     output_stoch <- run_experiments(
 #       initial_state = initial_state,
@@ -294,7 +292,7 @@ dev.off()
 #     total_costs_stoch <- sapply(1:num_experiments, function(j) {
 #       output_stoch$output_all[j, length(times), "TotalCost"]
 #     })
-#     
+# 
 #     # Statistics
 #     mean_cost_stoch <- mean(total_costs_stoch)
 #     q_lo <- quantile(total_costs_stoch, 0.025)
@@ -303,7 +301,7 @@ dev.off()
 #     ci_lower <- mean_cost_stoch - 1.96 * se
 #     ci_upper <- mean_cost_stoch + 1.96 * se
 #     val <- param_grid[[sensitivity_target]][i]
-#     
+# 
 #     # Store results
 #     sensitivity_results <- rbind(
 #       sensitivity_results,
@@ -314,10 +312,10 @@ dev.off()
 #                  CI025 = ci_lower, CI975 = ci_upper)
 #     )
 #   }
-#   
+# 
 #   # Save individual CSV
 #   write.csv(sensitivity_results, paste0("sensitivity_", sensitivity_target, ".csv"), row.names = FALSE)
-#   
+# 
 #   # Plot for current parameter
 #   p <- ggplot(sensitivity_results, aes(x = Value, y = TotalCost, color = Type)) +
 #     geom_ribbon(data = subset(sensitivity_results, Type == "Stochastic"),
@@ -344,7 +342,7 @@ dev.off()
 #                         "95% Credible Interval" = "steelblue",
 #                         "95% Confidence Interval" = "red"
 #                       ))
-#   
+# 
 #   print(p)
 # }
 # 

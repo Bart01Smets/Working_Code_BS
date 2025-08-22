@@ -17,8 +17,8 @@ library(scales)
 
 # 1) Farboodi et al. (laissez-faire, log utility), both sides active => a^2 term
 #    FOC: u'(a) = 2 * beta * a * S * I * (lambda_S - lambda_I) / (S + I)
-#    With u'(a) = 1/a (log utility), closed form (the one you had in comments):
-#    a* = ( - (S+I) + sqrt((S+I)^2 + 8 * beta * S * I * Delta * (S+I)) ) / (4 * beta * S * I * Delta)
+#    With u'(a) = 1/a (log utility), closed form:
+#    a* = ( - (S+I) + sqrt((S+I)^2 + 4 * beta * S * I * Delta * (S+I)) ) / (2 * beta * S * I * Delta)
 a_function_farboodi_lf <- function(Ni, Ns, parameters) {
   if (isTRUE(parameters$bool_regular_sird)) return(1)
   pop <- parameters$pop_size
@@ -116,7 +116,7 @@ a_function_gans_behav <- function(Ni, Ns, parameters) {
   a_star <- 1 / (1 + sensitivity * I)
   return(.a_safe(a_star))
 }
-
+#6) doesn't work so well
 # 6) Acemoglu et al. (targeted lockdown proxy for a representative group)
 #    Map lockdown intensity L in [0,1] to activity a = 1 - w * I  (truncated)
 a_function_acemoglu_proxy <- function(Ni, Ns, parameters) {
@@ -131,23 +131,23 @@ a_function_acemoglu_proxy <- function(Ni, Ns, parameters) {
   a_star <- 1 - w * I
   return(.a_safe(a_star))
 }
-
-# 7) Simple Rt threshold rule (keep Rt <= 1), consistent with SIR contact mechanics
-#    Rt = R0 * a^2 * S  => a = sqrt( 1 / (R0 * S) )
-a_function_rt_threshold <- function(Ni, Ns, parameters) {
-  if (isTRUE(parameters$bool_regular_sird)) return(1)
-  pop <- parameters$pop_size
-  if (pop <= 0 || is.na(pop)) return(1)
-  
-  S <- Ns / pop
-  if (S <= 0) return(1)
-  
-  R0 <- if (!is.null(parameters$R0)) parameters$R0 else parameters$beta / parameters$gamma
-  if (R0 <= 0) return(1)
-  
-  a_star <- sqrt(1 / (R0 * S))
-  return(.a_safe(a_star))
-}
+# doesn't work
+# # 7) Simple Rt threshold rule (keep Rt <= 1), consistent with SIR contact mechanics
+# #    Rt = R0 * a^2 * S  => a = sqrt( 1 / (R0 * S) )
+# a_function_rt_threshold <- function(Ni, Ns, parameters) {
+#   if (isTRUE(parameters$bool_regular_sird)) return(1)
+#   pop <- parameters$pop_size
+#   if (pop <= 0 || is.na(pop)) return(1)
+#   
+#   S <- Ns / pop
+#   if (S <= 0) return(1)
+#   
+#   R0 <- if (!is.null(parameters$R0)) parameters$R0 else parameters$beta / parameters$gamma
+#   if (R0 <= 0) return(1)
+#   
+#   a_star <- sqrt(1 / (R0 * S))
+#   return(.a_safe(a_star))
+# }
 
 
 # ---------------------------------------------

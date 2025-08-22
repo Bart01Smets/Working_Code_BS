@@ -1,134 +1,94 @@
 #
 # Workbench script for the EPI-ECON modelling work
-#
-# - Deterministic and stochastic modelling
+# Single binomial-draw stochastic run vs deterministic baseline
 ######################################################### #
+
 getwd()
-
-
 setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 
 # clear workbench
-rm(list=ls())
+rm(list = ls())
 
 # load functions
-source("scenarios/epi_econ_lib_nohosp.R")
+source("scenarios/epi_econ_lib_1stoch.R")
 
-# SETUP   ####
-####################
-
-# Parameters
+# ========== SETUP ==========
 parameters <- list(
-  gamma = 1/7,             # Recovery rate (γ) 1/7, alternatively 1/4
-  beta = 3/10+1/7,       # Transmission rate (β) 3/10
-  rho = 0.72 / 365,        # Discounting rate (ρ)
-  pi = 0.0062,             # Infection fatality rate (π)
-  kappa = 197,             # Expected cost of infection (κ)
-  ni0 = 0.0005,         # Initial infected population (Ni0)
-  ns0 = 0.9995,     # Initial susceptible population (Ns0)
-  nr0 = 0,                 # Initial recovered population (Nr0)
-  nd0 = 0, # Initial dead population (Nd0)
-  v = 31755,
-  fx = 123,                # Exchange rate multiplier for USD conversion
-  time_horizon = 1500,      # Time of shock
-  rng_seed = 150,
-  R0= (3/10+1/7)/(1/7),
-  pop_size = 1e6,
-  infect_thres = 1,
+  gamma = 1/7,                      # Recovery rate (γ)
+  beta = 3/10 + 1/7,               # Transmission rate (β)
+  rho = 0.72 / 365,                 # Discount rate (ρ)
+  pi = 0.0062,                      # Infection fatality rate (π)
+  kappa = 197,                      # Infection cost (κ) - used in a_function
+  ni0 = 0.0005,                     # Initial infected share
+  ns0 = 0.9995,                     # Initial susceptible share
+  nr0 = 0,                          # Initial recovered share
+  nd0 = 0,                          # Initial dead share
+  v = 31755,                        # Value of life (per capita)
+  fx = 123,                         # FX multiplier (to USD)
+  time_horizon = 1500,              # Simulation length (days)
+  rng_seed = 1500,
+  R0 = (3/10 + 1/7)/(1/7),
+  pop_size = 1e6,                   # Will reset just below
+  infect_thres = 1,                 # Fadeout threshold in persons
   utility_type = "Log",
-  sigma = 0.19,
-  bool_regular_sird = FALSE,  # NEW FLAG
-  bool_daily_cost_minimizing = FALSE,
-  # healthcare_capacity = ,
-  #  excess_mortality_multiplier = NULL
-  zeta = 0.2,   # Example: 20% know their recovered status
-      xi   = 1/10      # hospital exit rate (avg hospital duration ~10 days)
-  )
-  
+  sigma = 0.19,                     # Only used if stochastic β is enabled
+  bool_regular_sird = FALSE,
+  bool_daily_cost_minimizing = FALSE
+  # healthcare_capacity = NA,
+  # excess_mortality_multiplier = 1
+)
 
-parameters$pop_size<-1e4
-# define number of stochastic runs
-num_experiments <- 100
+# scale population (dev default)
+parameters$pop_size <- 1e4
 
-# define fadeout threshold
-fadeout_threshold = 100
+# Initial state (fractions; kernel converts to counts)
+initial_state <- c(
+  Ns = parameters$ns0,
+  Ni = parameters$ni0,
+  Nr = parameters$nr0,
+  Nd = parameters$nd0,
+  HealthCost = 0,
+  SocialActivityCost = 0,
+  TotalCost = 0,
+  a_t = NA,
+  u_t = NA,
+  Rt = NA
+)
 
-# define default parameters (for development)
-plot_tag <- 'dev'
-update_function <- get_transitions_stochastic
-
-# RUN DETERMINISTIC - ODE solver   ####
-########################################
-# Initial state variables including separate costs
-initial_state <- c(Ns = parameters$ns0, 
-                   Ni = parameters$ni0, 
-                   Nr = parameters$nr0, 
-                   Nd = parameters$nd0, 
-                   HealthCost = 0, 
-                   SocialActivityCost = 0, 
-                   TotalCost = 0,
-                   a_t = NA, 
-                   u_t = NA, 
-                   Rt= NA) # add a_t and u_t to keep track of this over time
-
-# Time sequence for pre-shock
+# Time grid
 times <- seq(0, parameters$time_horizon, by = 1)
 
-# RUN STOCHASTIC BETA REALISATIONS  ####
-########################################
-# note: make sure the sampled beta is also used for a_t, u_t, Lambda_s and Lambda_i
+# ========== DETERMINISTIC BASELINE ==========
+output_sim_deterministic <- run_sir_binomial(
+  initial_state = initial_state,
+  times = times,
+  parameters = parameters,
+  bool_stochastic_beta = FALSE,
+  update_function = get_transitions_deterministic
+)
 
-# get reference: deterministic model
-output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
-                                             times = times, 
-                                             parameters = parameters,
-                                             bool_stochastic_beta = FALSE,
-                                             update_function = get_transitions_deterministic)
-# Print deterministic peak infection time
 det_peak_time <- which.max(output_sim_deterministic$Ni) - 1
 cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
 
+# ========== ONE BINOMIAL STOCHASTIC RUN ==========
+set.seed(parameters$rng_seed)
 
-output_experiments <- run_experiments(initial_state = initial_state, 
-                                      times = times, 
-                                      parameters = parameters, 
-                                      bool_stochastic_beta = TRUE, 
-                                      update_function = get_transitions_deterministic, 
-                                      num_experiments= num_experiments)
+output_stoch_binom_one <- run_one_simulation(
+  initial_state = initial_state,
+  times = times,
+  parameters = parameters,
+  bool_stochastic_beta = FALSE,                  # fixed β
+  update_function = get_transitions_stochastic   # binomial draws for transitions
+)
 
-# inspect results
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='stoch beta')
+# Overlay plots + console summary
+plot_sim_vs_det(
+  output_stochastic   = output_stoch_binom_one,
+  output_deterministic = output_sim_deterministic,
+  plot_tag = "single_binomial"
+)
 
-
-
-
-# RUN STOCHASTIC BINIOMIAL MODEL REALISATIONS   ####
-####################################################
-
-# get reference: deterministic model
-output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
-                                             times = times, 
-                                             parameters = parameters,
-                                             update_function = get_transitions_deterministic)
-# Print deterministic peak infection time
-det_peak_time <- which.max(output_sim_deterministic$Ni) - 1
-cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
-
-head(output_sim_deterministic)
-output_experiments <- run_experiments(initial_state = initial_state, 
-                                      times = times, 
-                                      parameters = parameters,
-                                      bool_stochastic_beta = FALSE,
-                                      update_function = get_transitions_stochastic, 
-                                      num_experiments)
-
-# inspect all results
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial')
-
-# inspect results excl fadeout
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
-                   fadeout_threshold = fadeout_threshold)
-
+# Resulting PDF: ./figures/single_binomial.pdf
 
 # # ==============================
 # # MULTI-PARAMETER SENSITIVITY ANALYSIS

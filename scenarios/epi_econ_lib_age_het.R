@@ -31,46 +31,7 @@ a_function <- function(Ni, Ns, parameters) {
   return(max(0, min(1, a_t)))
 }
 
-# a_function_cost_minimizing <- function(Ns, Ni, t, parameters) {
-#   pop_size <- parameters$pop_size
-#   Ns_prop <- Ns / pop_size
-#   Ni_prop <- Ni / pop_size
-#   
-#   if (Ni <= 1e-12 || Ns <= 1e-12) return(1)
-#   
-#   beta <- parameters$beta
-#   gamma <- parameters$gamma
-#   pi <- parameters$pi
-#   v <- parameters$v
-#   rho <- parameters$rho
-#   
-#   fx_per_capita <- parameters$fx / pop_size
-#   discount <- exp(-rho * t)
-#   
-#   utility_function <- function(a) {
-#     if (parameters$utility_type == "Log") return(log(a) - a + 1)
-#     else return(-0.5 * (1 - a)^2)
-#   }
-#   
-#   total_cost_fn <- function(a) {
-#     # Compute probabilities
-#     p_infect <- 1 - exp(- beta * a^2 * Ni / pop_size)
-#     p_recover <- 1 - exp(-gamma)
-#     p_death <- 1 - exp(-pi)
-#     
-#     # Expected transitions
-#     E_deaths <- Ns * p_infect * p_recover * p_death
-#     
-#     # Cost components
-#     HC <- fx_per_capita * discount * v * E_deaths
-#     SAC <- fx_per_capita * discount * abs(utility_function(a)) * (Ns + Ni)
-#     
-#     return(HC + SAC)
-#   }
-#   
-#   res <- optimize(total_cost_fn, lower = 0.01, upper = 1, tol = 1e-4)
-#   return(res$minimum)
-# }
+
 
 
 # Utility function

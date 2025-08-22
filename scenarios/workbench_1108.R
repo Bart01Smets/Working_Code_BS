@@ -2,7 +2,6 @@
 # Workbench script for the EPI-ECON modelling work
 #
 # - Deterministic and stochastic modelling
-# - Still includes option for both binomial transitions and stochastic beta
 ######################################################### #
 getwd()
 
@@ -13,7 +12,7 @@ setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 rm(list=ls())
 
 # load functions
-source("R/epi_econ_lib_new1108.R")
+source("scenarios/Epi_econ_lib_1108.R")
 
 # SETUP   ####
 ####################
@@ -37,20 +36,20 @@ parameters <- list(
   pop_size = 1e6,
   infect_thres = 1,
   utility_type = "Log",
-  sigma = 0.19,
+  sigma = 0.05,
   bool_regular_sird = FALSE,  # NEW FLAG
   bool_daily_cost_minimizing = FALSE,
-beta_process = "state_dependent",  # one of: "fixed","iid_normal","wiener","gbm","state_dependent"
+beta_process = "gbm",  # one of: "fixed","iid_normal","wiener","gbm","state_dependent"
 
-  # shared controls
-  beta_min   = 1e-6,       # floor
-  beta_max   = Inf,        # optional ceiling; set to Inf to disable
-  beta_mu    = 0.0,        # daily drift for wiener/gbm
-  beta_sigma = 0.05,       # base daily diffusion (std)
+# clamps tighter around baseline beta ≈ 0.443
+beta_min   = 0.15,                    # ≈ 0.35 * beta
+beta_max   = 0.55,                    # ≈ 1.25 * beta
+beta_mu    = 0.0,                     # keep E[β] stationary
+beta_sigma = 0.03,                    # gentle log-vol
 
-  # state-dependent extras
-  beta_k_state = 5.0,      # scales diffusion with prevalence (see evolve_beta())
-  beta_ref     = 1e-4      # small ref to avoid zero volatility when Ni≈0
+# state-dependent extras 
+beta_k_state = 1.5,
+beta_ref     = 1e-4
 )
  # healthcare_capacity = ,
 #  excess_mortality_multiplier = NULL
@@ -98,7 +97,7 @@ output_sim_deterministic <- run_sir_binomial(initial_state = initial_state,
 det_peak_time <- which.max(output_sim_deterministic$Ni) - 1
 cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
 
-parameters$beta_process <- "state_dependent"  # switch to stochastic beta
+parameters$beta_process <- "gbm"  # switch to stochastic beta
 parameters$beta_sigma   <- parameters$sigma
 
 output_experiments <- run_experiments(initial_state = initial_state, 

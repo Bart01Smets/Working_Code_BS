@@ -31,47 +31,6 @@ a_function <- function(Ni, Ns, parameters) {
   return(max(0, min(1, a_t)))
 }
 
-# a_function_cost_minimizing <- function(Ns, Ni, t, parameters) {
-#   pop_size <- parameters$pop_size
-#   Ns_prop <- Ns / pop_size
-#   Ni_prop <- Ni / pop_size
-#   
-#   if (Ni <= 1e-12 || Ns <= 1e-12) return(1)
-#   
-#   beta <- parameters$beta
-#   gamma <- parameters$gamma
-#   pi <- parameters$pi
-#   v <- parameters$v
-#   rho <- parameters$rho
-#   
-#   fx_per_capita <- parameters$fx / pop_size
-#   discount <- exp(-rho * t)
-#   
-#   utility_function <- function(a) {
-#     if (parameters$utility_type == "Log") return(log(a) - a + 1)
-#     else return(-0.5 * (1 - a)^2)
-#   }
-#   
-#   total_cost_fn <- function(a) {
-#     # Compute probabilities
-#     p_infect <- 1 - exp(- beta * a^2 * Ni / pop_size)
-#     p_recover <- 1 - exp(-gamma)
-#     p_death <- 1 - exp(-pi)
-#     
-#     # Expected transitions
-#     E_deaths <- Ns * p_infect * p_recover * p_death
-#     
-#     # Cost components
-#     HC <- fx_per_capita * discount * v * E_deaths
-#     SAC <- fx_per_capita * discount * abs(utility_function(a)) * (Ns + Ni)
-#     
-#     return(HC + SAC)
-#   }
-#   
-#   res <- optimize(total_cost_fn, lower = 0.01, upper = 1, tol = 1e-4)
-#   return(res$minimum)
-# }
-
 
 # Utility function
 utility_function <- function(a_t) {
@@ -280,7 +239,6 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   y_lim <- range(output_cost)
   
   # --- COST DISTRIBUTIONS: HISTOGRAM + DENSITY -------------------------------
-  library(ggplot2)
   
   # OPTIONAL: exclude early fade-outs (use same threshold as elsewhere)
   # A run "took off" if total ever infected >= fadeout_threshold
@@ -328,30 +286,21 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   output_all <- output_experiments$output_all   # [exp, time, var]
   time_vec   <- 0:(dim(output_all)[2]-1)
   
-  # Helper: has extinction occurred by (or at) time t?
-  Ni_mat <- output_all[, , "Ni", drop = FALSE]  # dims: [exp, time, 1]
-  Ni_mat <- Ni_mat[, , 1]                        # to matrix
-  
-  # Cumulative extinction indicator per run over time:
-  # extinct_by_t[i,t] = 1 if any Ni up to t == 0 (i.e., once extinct, stays extinct)
-  extinct_now     <- (Ni_mat == 0)
-  extinct_by_t    <- t(apply(extinct_now, 1, function(z) as.integer(cummax(z) > 0)))
-  
-  # Probability of extinction by time t (across experiments)
-  p_extinction_t <- colMeans(extinct_by_t, na.rm = TRUE)
+  # Extinction indicator using strict Ni == 0 (keep as-is)
+  Ni_mat <- output_all[, , "Ni", drop = FALSE][, , 1]
+  extinct_now  <- (Ni_mat == 0)
   
   # Time of first extinction for each run (NA if never extinct)
   first_ext_time <- apply(extinct_now, 1, function(z) {
     idx <- which(z)
     if (length(idx) == 0) return(NA_integer_)
-    # convert column index to "time" (0-based)
-    return(time_vec[min(idx)])
+    time_vec[min(idx)]
   })
   
-  # Console summary (good for the paper)
+  # Console summary
   cat("\n--- EXTINCTION (FADE-OUT) STATS ---\n")
   cat(sprintf("Overall extinction rate by T=%d: %.1f%%\n",
-              max(time_vec), 100*mean(!is.na(first_ext_time))))
+              max(time_vec), 100 * mean(!is.na(first_ext_time))))
   cat(sprintf("Median time-to-extinction (conditional): %s\n",
               ifelse(all(is.na(first_ext_time)), "NA",
                      sprintf("%.0f days", median(first_ext_time, na.rm = TRUE)))))
@@ -359,34 +308,21 @@ compare_sim_output <- function(output_experiments, output_deterministic,
               ifelse(all(is.na(first_ext_time)), "NA",
                      paste(round(quantile(first_ext_time, c(0.25, 0.75), na.rm = TRUE)), collapse = "–"))))
   
-  # (A) Probability of extinction over time
-  df_ext_prob <- data.frame(time = time_vec, p_ext = p_extinction_t)
-  print(
-  ggplot(df_ext_prob, aes(x = time, y = p_ext)) +
-    geom_line(linewidth = 1) +
-    labs(
-      title = "Probability of Extinction Over Time",
-      x = "Time (days)",
-      y = "P(Extinction by time t)"
-    ) +
-    theme_minimal()
-  )
-  
-  # (B) Distribution of first extinction times (conditional on extinction)
+  # (Only) Distribution of first extinction times (conditional on extinction)
   df_ext_time <- data.frame(first_ext_time = first_ext_time)
   df_ext_time <- df_ext_time[!is.na(df_ext_time$first_ext_time), , drop = FALSE]
   
   if (nrow(df_ext_time) > 0) {
     print(
-    ggplot(df_ext_time, aes(x = first_ext_time)) +
-      geom_histogram(bins = 40, alpha = 0.35) +
-      geom_density(linewidth = 1) +
-      labs(
-        title = "Distribution of Time to Extinction (conditional on extinction)",
-        x = "Days until Ni reaches 0",
-        y = "Count / Density"
-      ) +
-      theme_minimal()
+      ggplot(df_ext_time, aes(x = first_ext_time)) +
+        geom_density(aes(y = ..scaled..), linewidth = 1) +  # smooth curve only
+        scale_y_continuous(labels = scales::percent) +
+        labs(
+          title = "Distribution of Time to Extinction (conditional on extinction)",
+          x = "Days until Ni reaches 0",
+          y = "Percentage of simulations"
+        ) +
+        theme_minimal()
     )
   }
   

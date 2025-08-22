@@ -13,7 +13,7 @@ setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 rm(list=ls())
 
 # load functions
-source("R/epi_econ_lib_new.R")
+source("scenarios/epi_econ_lib_policy.R")
 
 # SETUP   ####
 ####################
@@ -40,25 +40,23 @@ parameters <- list(
   sigma = 0.19,
   bool_regular_sird = FALSE,  # NEW FLAG
   bool_daily_cost_minimizing = FALSE,
-  # healthcare_capacity = ,
-  #  excess_mortality_multiplier = NULL
   # --- Policy knobs (default-off) ---
   # 1) Activity cap / lockdown triggers
-  a_cap = 1.0,                     # <=1; e.g. 0.6 for partial lockdown
-  lock_trigger_Ni = NA,            # integer infections to activate cap; NA disables
-  lock_release_Ni = NA,            # integer infections to release; NA disables
+  a_cap = 0.6,                     # <=1; e.g. 0.6 for partial lockdown
+  lock_trigger_Ni = 5,            # integer infections to activate cap; NA disables
+  lock_release_Ni = 5,            # integer infections to release; NA disables
   
   # 2) Pigouvian tax on activity (can be prevalence-linked)
-  tau0 = 0.0,                      # baseline tax in “utility units” per unit a
-  tau_per_Ni = 0.0,                # extra tax × prevalence (per capita)
+  tau0 = 0,                      # baseline tax in “utility units” per unit a
+  tau_per_Ni = 0,                # extra tax × prevalence (per capita)
   
   # 3) Masks / distancing mandate
-  mask_effect = 0.0,               # 0.35 = 35% per-contact reduction
-  mask_compliance = 0.0,           # share complying
+  mask_effect = 0,               # 0.35 = 35% per-contact reduction, example: 0.4
+  mask_compliance = 0,           # share complying, example: 0.7
   
   # 4) Testing & isolation (minimal: increases effective removal)
-  test_rate = 0.0,                 # fraction of I tested per day
-  isolation_effect = 0.0,          # 0..1: how much testing adds to removal
+  test_rate = 0,                 # fraction of I tested per day
+  isolation_effect = 0,          # 0..1: how much testing adds to removal
   
   # 5) Hospital capacity (smooth excess mortality)
   healthcare_capacity = NULL,      # e.g. 800; NULL = disabled
@@ -66,27 +64,46 @@ parameters <- list(
   capacity_slope = 0.0,            # >0 for smooth ramp; 0 for step
   
   # 6) Vaccination rollout
-  nu = 0.0,                        # daily S->R rate
-  start_vax_day = Inf,             # day to start vaccinating
-  vax_efficacy_inf = 1.0,          # if you later add a V state; here kept simple
+  nu = 0.0,                        # daily S->R rate;0.01
+  start_vax_day = Inf,             # day to start vaccinating 90
+  vax_efficacy_inf = 1,          # if you later add a V state; here kept simple;1
   
   # 7) Border controls / importations
   lambda_import = 0.0,             # mean imported cases per day (Poisson)
   
   # 8) Sectoral NPIs (optional β decomposition; leave zeros to ignore)
-  beta_home = 0.0, beta_work = 0.0, beta_school = 0.0, beta_other = 0.0,
+  beta_home   = 0,
+  beta_work   = 0,
+  beta_school = 0,
+  beta_other  = 0,
   school_open = TRUE,
   
+  
   # 9) Information campaign (behavioral risk multiplier used in a_t choice)
-  risk_multiplier = 1.0,
-  campaign_start = -Inf,           # inclusive
-  campaign_end   = -Inf            # inclusive
+  risk_multiplier = 1,#example value: 1.5
+  campaign_start = Inf,           # inclusive example value: 40
+  campaign_end   = Inf          # inclusive example value:1000
   
 )
 
+# parameters$beta_home   <- parameters$beta * 0.30 * 1.05
+# parameters$beta_work   <- parameters$beta * 0.35 * 0.60
+# parameters$beta_school <- parameters$beta * 0.20 * 1.00
+# parameters$beta_other  <- parameters$beta * 0.15 * 0.60
+# parameters$school_open <- TRUE
+# 
+# # Assumptions:
+# hosp_rate <- 0.02          # 2% of infectives need ICU-level care
+# icu_beds_per_100k <- 20    # ICU beds effectively available for this disease
+# 
+# parameters$healthcare_capacity <- round((parameters$pop_size / 1e5) * icu_beds_per_100k / hosp_rate)
+# parameters$excess_mortality_multiplier <- 2.0   # IFR can double when ICU saturates
+# parameters$capacity_slope <- 6.0               # steeper ramp around the threshold
+
+
 parameters$pop_size<-1e4
 # define number of stochastic runs
-num_experiments <- 10
+num_experiments <- 100
 
 # define fadeout threshold
 fadeout_threshold = 100
