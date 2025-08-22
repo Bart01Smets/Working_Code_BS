@@ -117,17 +117,17 @@ run_sir_binomial <- function(initial_state,
     new_infections <- update_function(Ns, prob = p_infect)
     new_recoveries <- update_function(Ni, prob = p_recover)
     new_death      <- update_function(new_recoveries, prob = p_death)
-    
+     if((Ni - new_recoveries) < parameters$infect_thres){
+      new_recoveries = Ni
+      new_infections = 0
+    }
     # get health transitions
     dNs <- -new_infections
     dNi <- new_infections - new_recoveries
     dNr <- new_recoveries - new_death
     dNd <- new_death
     
-    if((Ni - new_recoveries) < parameters$infect_thres){
-      new_recoveries = Ni
-      new_infections = 0
-    }
+   
     
     # get current costs (per capita)
     HealthCost <-  HealthCost+  fx_per_capita * exp(-parameters$rho * i_day) *parameters$v*new_death
