@@ -12,7 +12,7 @@ setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS")
 rm(list=ls())
 
 # load functions
-source("scenarios/Epi_econ_lib_1108.R")
+source("scenarios/Epi_econ_lib_beta.R")
 
 # SETUP   ####
 ####################
