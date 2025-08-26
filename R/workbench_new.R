@@ -103,10 +103,10 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 #   beta = seq(0.1, 0.7, length.out = 10),
 #   pi = seq(0.001, 0.01, length.out = 10),
 #   gamma = seq(1/14, 1/3, length.out = 10),
-#   ni0 = seq(0.0001, 0.05, length.out = 10),
+#   ni0 = seq(0.0005, 0.05, length.out = 10),
 #   pop_size = round(seq(10000, 100000, length.out = 10)),
 #   time_horizon = seq(200, 2000, length.out = 10),
-#   rho = seq(0, 100/365, length.out = 10)
+#   rho = seq(0, 1/365, length.out = 10)
 # )
 # 
 # # Open a multipage PDF
