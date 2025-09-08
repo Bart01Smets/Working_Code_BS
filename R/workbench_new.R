@@ -38,6 +38,7 @@ parameters <- list(
 )
 
 parameters$beta <- 0.3 + parameters$gamma
+
 # define number of stochastic runs
 num_experiments <- 300
 
@@ -266,3 +267,4 @@ for (sensitivity_target in names(param_ranges)) {
 }
 
 dev.off()
+

@@ -120,6 +120,7 @@ run_sir_binomial <- function(initial_state,
       new_infections = 0
     }
     
+
     # get health transitions
     dNs <- -new_infections
     dNi <- new_infections - new_recoveries
