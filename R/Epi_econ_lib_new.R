@@ -43,9 +43,6 @@ calculate_Rt <- function(R0, a_t, Ns_prop, Ni) {
 }
 
 get_transitions_stochastic <- function(n, prob) {
-  #cat("DEBUG — rbinom() inputs:\n")
-  #cat("  n =", n, "\n")
-  #cat("  prob =", prob, "\n")
   
   if (is.na(n) || is.na(prob) || !is.numeric(n) || !is.numeric(prob) || n < 0 || prob < 0 || prob > 1) {
     warning("Invalid rbinom() inputs: returning 0")
@@ -118,16 +115,18 @@ run_sir_binomial <- function(initial_state,
     new_recoveries <- update_function(Ni, prob = p_recover)
     new_death      <- update_function(new_recoveries, prob = p_death)
     
+    if((Ni - new_recoveries) < parameters$infect_thres){
+      new_recoveries = Ni
+      new_infections = 0
+    }
+    
     # get health transitions
     dNs <- -new_infections
     dNi <- new_infections - new_recoveries
     dNr <- new_recoveries - new_death
     dNd <- new_death
     
-    if((Ni - new_recoveries) < parameters$infect_thres){
-      new_recoveries = Ni
-      new_infections = 0
-    }
+   
     
     # get current costs (per capita)
     HealthCost <-  HealthCost+  fx_per_capita * exp(-parameters$rho * i_day) *parameters$v*new_death
@@ -176,7 +175,7 @@ get_mean_ci_text <- function(vect){
 
 # function to compare stochastic and deterministic output
 compare_sim_output <- function(output_experiments, output_deterministic,
-                               plot_tag, fadeout_threshold = 0){
+                               plot_tag, fadeout_threshold = 100){
   
   # split output
   output_summary <- output_experiments$output_summary
@@ -250,8 +249,11 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     ci_hi_meanband <- ci_mean + 1.96 * ci_se
     
     # Plot both bands
-    plot(NULL, xlim=range(time_vec), ylim=range(ci_lower, ci_upper, ci_lo_meanband, ci_hi_meanband, output_sim_deterministic[,i_state], na.rm=TRUE),
-         xlab='time', ylab=plot_label, main=plot_label)
+       plot(NULL,
+         xlim = c(0, max(time_vec)),
+         ylim = c(0, max(ci_upper, ci_hi_meanband, output_sim_deterministic[, i_state], na.rm=TRUE)),
+         xlab = 'time', ylab = plot_label, main = plot_label,
+         xaxs = "i", yaxs = "i")
     
     # Plot quantile-based (light blue)
     polygon(c(time_vec, rev(time_vec)), c(ci_upper, rev(ci_lower)), col=alpha("lightblue", 0.4), border=NA)
@@ -366,9 +368,10 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   segments(x0 = 1.1, x1 = 1.1, y0 = quant_health[1], y1 = quant_health[2], col = "blue", lwd = 2, lty = 2)
   
   
-  # Add deterministic outcome
-  points(1.2, output_summary_deterministic$HealthCost, col = "red", pch = 18, cex = 1.5)
   
+  # Deterministic and stochastic outcome lines for healthcost
+  abline(h = output_summary_deterministic$HealthCost, col = "red", lwd = 2)
+  abline(h = mean(output_summary$HealthCost, na.rm = TRUE), col = "purple", lwd = 2)
   
   # Social Activity Cost boxplot with mean, 95% CI, and deterministic point
   boxplot(output_summary$SocialActivityCost,
@@ -377,9 +380,11 @@ compare_sim_output <- function(output_experiments, output_deterministic,
           ylim = range(c(output_summary$SocialActivityCost, output_summary_deterministic$SocialActivityCost), na.rm = TRUE),
           col = "gray90")
   
-  # Add stochastic mean
-  points(1, mean(output_summary$SocialActivityCost, na.rm = TRUE), pch = 8)
+  # Add these two lines 
+  abline(h = mean(output_summary$SocialActivityCost, na.rm = TRUE), col = "purple", lwd = 2)
+  abline(h = output_summary_deterministic$SocialActivityCost, col = "red", lwd = 2)
   
+
   # Add 95% confidence interval
   ci_social <- ci_mean(output_summary$SocialActivityCost)
   segments(x0 = 1, x1 = 1, y0 = ci_social$interval[1], y1 = ci_social$interval[2], col = "forestgreen", lwd = 2)
@@ -387,9 +392,6 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   quant_social <- quantile(output_summary$SocialActivityCost, probs = c(0.025, 0.975), na.rm = TRUE)
   segments(x0 = 1.1, x1 = 1.1, y0 = quant_social[1], y1 = quant_social[2], col = "blue", lwd = 2, lty = 2)
   
-  
-  # Add deterministic outcome
-  points(1.2, output_summary_deterministic$SocialActivityCost, col = "red", pch = 18, cex = 1.5)
   
   # prepare summary statistics
   print_out <- data.frame(output=c('Health Cost (per capita)','Social Activity Cost (per capita)','Total Cost (per capita)'),
