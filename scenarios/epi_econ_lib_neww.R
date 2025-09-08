@@ -30,6 +30,34 @@ a_function <- function(Ni, Ns, parameters) {
   return(max(0, min(1, a_t)))
 }
 
+# # Quadratic closed-form activity (planner/myopic with altruism α)
+# # A* = [ -(Ns+Ni) + sqrt((Ns+Ni)^2 + 4 β κ Ns Ni (1+α)(Ns+Ni)) ] / [ 2 β κ Ns Ni (1+α) ]
+# a_function <- function(Ni, Ns, parameters) {
+#   # Work in proportions
+#   Ni_prop <- Ni / parameters$pop_size
+#   Ns_prop <- Ns / parameters$pop_size
+#   
+#   # κ: use parameters$kappa if present, else π * v
+#   kappa <- if (!is.null(parameters$kappa)) parameters$kappa else parameters$pi * parameters$v
+#   alpha <- if (!is.null(parameters$alpha)) parameters$alpha else 0
+#   
+#   # early exits
+#   if (Ni_prop <= 1e-12 || Ns_prop <= 1e-12) return(1)
+#   
+#   num_sum  <- Ns_prop + Ni_prop
+#   mult     <- parameters$beta * kappa * Ns_prop * Ni_prop * (1 + alpha)
+#   denom    <- 2 * mult
+#   discrim  <- num_sum^2 + 4 * mult * num_sum
+#   
+#   if (!is.finite(denom) || denom <= 0 || !is.finite(discrim) || discrim < 0) return(1)
+#   
+#   A_star <- (-num_sum + sqrt(discrim)) / denom
+#   # keep in [0,1]
+#   max(0, min(1, A_star))
+# }
+
+
+
 # Utility function
 utility_function <- function(a_t) {
   
@@ -43,6 +71,9 @@ calculate_Rt <- function(R0, a_t, Ns_prop, Ni) {
 }
 
 get_transitions_stochastic <- function(n, prob) {
+  #cat("DEBUG — rbinom() inputs:\n")
+  #cat("  n =", n, "\n")
+  #cat("  prob =", prob, "\n")
   
   if (is.na(n) || is.na(prob) || !is.numeric(n) || !is.numeric(prob) || n < 0 || prob < 0 || prob > 1) {
     warning("Invalid rbinom() inputs: returning 0")
@@ -109,17 +140,15 @@ run_sir_binomial <- function(initial_state,
     
     p_infect <- 1 - exp(- beta_t * a_t^2 * Ni / parameters$pop_size)
     p_recover <- 1 - exp(-parameters$gamma)
-    p_death <-  1 - exp(- parameters$pi)
+    p_death <- 1 - exp(- parameters$pi)
     
     new_infections <- update_function(Ns, prob = p_infect)
     new_recoveries <- update_function(Ni, prob = p_recover)
     new_death      <- update_function(new_recoveries, prob = p_death)
-    
     if((Ni - new_recoveries) < parameters$infect_thres){
       new_recoveries = Ni
       new_infections = 0
     }
-    
     # get health transitions
     dNs <- -new_infections
     dNi <- new_infections - new_recoveries
@@ -175,7 +204,7 @@ get_mean_ci_text <- function(vect){
 
 # function to compare stochastic and deterministic output
 compare_sim_output <- function(output_experiments, output_deterministic,
-                               plot_tag, fadeout_threshold = 100){
+                               plot_tag, fadeout_threshold = 0){
   
   # split output
   output_summary <- output_experiments$output_summary
@@ -249,22 +278,8 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     ci_hi_meanband <- ci_mean + 1.96 * ci_se
     
     # Plot both bands
-   # plot(NULL, xlim=range(time_vec), ylim=range(ci_lower, ci_upper, ci_lo_meanband, ci_hi_meanband, output_sim_deterministic[,i_state], na.rm=TRUE),
-    #     xlab='time', ylab=plot_label, main=plot_label)
-    # plot(NULL,
-    #      xlim = c(0, max(time_vec)),
-    #      ylim = c(0, max(ci_upper, ci_hi_meanband,
-    #                      output_sim_deterministic[, i_state], na.rm=TRUE)),
-    #      xlab = 'time', ylab = plot_label, main = plot_label,
-    #      xaxs = "i", yaxs = "i")   # <- important
-    # 
-    plot(NULL,
-         xlim = c(0, max(time_vec)),
-         ylim = c(0, max(ci_upper, ci_hi_meanband,
-                         output_sim_deterministic[, i_state], na.rm=TRUE)),
-         xlab = 'time', ylab = plot_label, main = plot_label,
-         xaxs = "i", yaxs = "i")   # <- important
-    
+    plot(NULL, xlim=range(time_vec), ylim=range(ci_lower, ci_upper, ci_lo_meanband, ci_hi_meanband, output_sim_deterministic[,i_state], na.rm=TRUE),
+         xlab='time', ylab=plot_label, main=plot_label)
     
     # Plot quantile-based (light blue)
     polygon(c(time_vec, rev(time_vec)), c(ci_upper, rev(ci_lower)), col=alpha("lightblue", 0.4), border=NA)
@@ -380,13 +395,8 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   
   
   # Add deterministic outcome
-  #points(1.2, output_summary_deterministic$HealthCost, col = "red", pch = 18, cex = 3)
-  # Add deterministic outcome as a horizontal line
-  # Deterministic outcome (solid red line)
-  abline(h = output_summary_deterministic$HealthCost, col = "red", lwd = 2)
+  points(1.2, output_summary_deterministic$HealthCost, col = "red", pch = 18, cex = 1.5)
   
-  # Stochastic mean (solid dark green line)
-  abline(h = mean(output_summary$HealthCost, na.rm = TRUE), col = "purple", lwd = 2)
   
   # Social Activity Cost boxplot with mean, 95% CI, and deterministic point
   boxplot(output_summary$SocialActivityCost,
@@ -394,10 +404,6 @@ compare_sim_output <- function(output_experiments, output_deterministic,
           ylab = "Social Activity Cost",
           ylim = range(c(output_summary$SocialActivityCost, output_summary_deterministic$SocialActivityCost), na.rm = TRUE),
           col = "gray90")
-  # (correct)
-  abline(h = mean(output_summary$SocialActivityCost, na.rm = TRUE), col = "purple", lwd = 2)
-  abline(h = output_summary_deterministic$SocialActivityCost, col = "red", lwd = 2)
-  
   
   # Add stochastic mean
   points(1, mean(output_summary$SocialActivityCost, na.rm = TRUE), pch = 8)
@@ -411,13 +417,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   
   
   # Add deterministic outcome
-  #points(1.2, output_summary_deterministic$SocialActivityCost, col = "red", pch = 18, cex = 3)
-  
-  # # Add deterministic outcome as a horizontal line
-  # abline(h = output_summary_deterministic$SocialActivityCost, col = "red", lwd = 2, lty = 2)
-  # abline(h = mean(output_summary$SocialActivityCost, na.rm = TRUE), col = "blue", lwd = 2)
-  # 
-  
+  points(1.2, output_summary_deterministic$SocialActivityCost, col = "red", pch = 18, cex = 1.5)
   
   # prepare summary statistics
   print_out <- data.frame(output=c('Health Cost (per capita)','Social Activity Cost (per capita)','Total Cost (per capita)'),

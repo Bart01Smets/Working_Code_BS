@@ -39,7 +39,7 @@ parameters <- list(
   sigma = 0.05,
   bool_regular_sird = FALSE,  # NEW FLAG
   bool_daily_cost_minimizing = FALSE,
-beta_process = "gbm",  # one of: "fixed","iid_normal","wiener","gbm","state_dependent"
+beta_process = "iid_normal",  # one of: "fixed","iid_normal","wiener","gbm","state_dependent"
 
 # clamps tighter around baseline beta ≈ 0.443
 beta_min   = 0.15,                    # ≈ 0.35 * beta
@@ -86,7 +86,7 @@ times <- seq(0, parameters$time_horizon, by = 1)
 # RUN STOCHASTIC BETA REALISATIONS  ####
 ########################################
 # note: make sure the sampled beta is also used for a_t, u_t, Lambda_s and Lambda_i
-parameters$beta_process <- "fixed"  # ensure constant β
+parameters$beta_process <- "iid_normal"  # ensure constant β
 # get reference: deterministic model
 output_sim_deterministic <- run_sir_binomial(initial_state = initial_state, 
                                              times = times, 
@@ -97,7 +97,7 @@ output_sim_deterministic <- run_sir_binomial(initial_state = initial_state,
 det_peak_time <- which.max(output_sim_deterministic$Ni) - 1
 cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
 
-parameters$beta_process <- "gbm"  # switch to stochastic beta
+parameters$beta_process <- "iid_normal"  # switch to stochastic beta
 parameters$beta_sigma   <- parameters$sigma
 
 output_experiments <- run_experiments(initial_state = initial_state, 
