@@ -40,7 +40,7 @@ parameters <- list(
 parameters$beta <- 0.3 + parameters$gamma
 
 # define number of stochastic runs
-num_experiments <- 300
+num_experiments <- 1000
 
 # define fadeout threshold
 fadeout_threshold = 100

@@ -107,19 +107,10 @@ run_sir_binomial <- function(initial_state,
     # Calculate utility of action
     u_t <- utility_function(a_t)
     
-    # p_infect <- 1 - exp(- beta_t * a_t^2 * Ni / parameters$pop_size)
-    # p_recover <- 1 - exp(-parameters$gamma)
-    # p_death <- 1 - exp(- parameters$pi)
-    # 
+   
     p_infect  <- 1 - exp(- beta_t * a_t^2 * (Ni / parameters$pop_size))         # p_i = 1 - exp(-β A^2 n_i)
     p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)               # p_r = 1 - exp(- (1-π)γ)
     p_death   <- 1 - exp(- parameters$pi * parameters$gamma)                     # p_d = 1 - exp(- πγ)
-    
-    
-    
-    # new_infections <- update_function(Ns, prob = p_infect)
-    # new_recoveries <- update_function(Ni, prob = p_recover)
-    # new_death      <- update_function(new_recoveries, prob = p_death)
     
     new_infections <- update_function(Ns, prob = p_infect)                       # I_new ~ Binom(Ns, p_i)
     new_recoveries <- update_function(Ni, prob = p_recover)                      # R_new ~ Binom(Ni, p_r)
@@ -131,13 +122,6 @@ run_sir_binomial <- function(initial_state,
       new_infections = 0
     }
     
-
-    # get health transitions
-    # dNs <- -new_infections
-    # dNi <- new_infections - new_recoveries
-    # dNr <- new_recoveries - new_death
-    # dNd <- new_death
-    # 
     dNs <- -new_infections
     dNi <-  new_infections - new_recoveries - new_death
     dNr <-  new_recoveries
