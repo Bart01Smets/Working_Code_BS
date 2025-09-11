@@ -9,6 +9,9 @@ library(confintr)
 library(scales)
 
 a_function <- function(Ni, Ns, parameters) {
+  if (!is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)) {
+    return(1)
+  }
   # Convert to proportions
   Ni_prop <- Ni / parameters$pop_size
   Ns_prop <- Ns / parameters$pop_size
@@ -31,8 +34,10 @@ a_function <- function(Ni, Ns, parameters) {
 }
 
 # Utility function
-utility_function <- function(a_t) {
-  
+utility_function <- function(a_t, parameters) {
+  if (!is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)) {
+    return(0)
+  }
   return(log(a_t) - a_t + 1)
 }
 
@@ -96,58 +101,82 @@ run_sir_binomial <- function(initial_state,
   fx_per_capita <- parameters$fx / parameters$pop_size
   
   # run over times (excl the first one)
+  regular_mode <- !is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)
+  
   for(i_day in times[-1]){
-    
     beta_t <- parameters$beta
-    
-    
     Ns_prop <- Ns / parameters$pop_size
-    a_t <- a_function(Ni, Ns, parameters)
     
-    # Calculate utility of action
-    u_t <- utility_function(a_t)
-    
-   
-    p_infect  <- 1 - exp(- beta_t * a_t^2 * (Ni / parameters$pop_size))         # p_i = 1 - exp(-β A^2 n_i)
-    p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)               # p_r = 1 - exp(- (1-π)γ)
-    p_death   <- 1 - exp(- parameters$pi * parameters$gamma)                     # p_d = 1 - exp(- πγ)
-    
-    new_infections <- update_function(Ns, prob = p_infect)                       # I_new ~ Binom(Ns, p_i)
-    new_recoveries <- update_function(Ni, prob = p_recover)                      # R_new ~ Binom(Ni, p_r)
-    new_death     <- update_function(Ni, prob = p_death)                        # D_new ~ Binom(Ni, p_d)
-    
-    
-    if((Ni - new_recoveries) < parameters$infect_thres){
-      new_recoveries = Ni
-      new_infections = 0
+    if (regular_mode) {
+      # ----- Regular SIRD: fixed activity, no activity cost -----
+      a_t <- 1
+      u_t <- 0
+      
+      # Infection, recovery, death probabilities (NO a_t^2 factor here)
+      p_infect  <- 1 - exp(- beta_t * (Ni / parameters$pop_size))
+      p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)
+      p_death   <- 1 - exp(- parameters$pi * parameters$gamma)
+      
+      new_infections <- update_function(Ns, prob = p_infect)
+      new_recoveries <- update_function(Ni, prob = p_recover)
+      new_death      <- update_function(Ni, prob = p_death)
+      
+      if ((Ni - new_recoveries) < parameters$infect_thres) {
+        new_recoveries <- Ni
+        new_infections <- 0
+      }
+      
+      dNs <- -new_infections
+      dNi <-  new_infections - new_recoveries - new_death
+      dNr <-  new_recoveries
+      dNd <-  new_death
+      
+      # Costs: health only
+      HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
+      # SocialActivityCost remains unchanged (0 in regular mode)
+      
+      Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
+      
+    } else {
+      # ----- Behavioral epi-econ branch (original) -----
+      a_t <- a_function(Ni, Ns, parameters)
+      u_t <- utility_function(a_t, parameters)
+      
+      p_infect  <- 1 - exp(- beta_t * a_t^2 * (Ni / parameters$pop_size))
+      p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)
+      p_death   <- 1 - exp(- parameters$pi * parameters$gamma)
+      
+      new_infections <- update_function(Ns, prob = p_infect)
+      new_recoveries <- update_function(Ni, prob = p_recover)
+      new_death      <- update_function(Ni, prob = p_death)
+      
+      if ((Ni - new_recoveries) < parameters$infect_thres) {
+        new_recoveries <- Ni
+        new_infections <- 0
+      }
+      
+      dNs <- -new_infections
+      dNi <-  new_infections - new_recoveries - new_death
+      dNr <-  new_recoveries
+      dNd <-  new_death
+      
+      HealthCost <-  HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
+      SocialActivityCost <- SocialActivityCost + fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
+      
+      Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
     }
     
-    dNs <- -new_infections
-    dNi <-  new_infections - new_recoveries - new_death
-    dNr <-  new_recoveries
-    dNd <-  new_death
-   
+    # Update stocks
+    Ns <- Ns + dNs; Ni <- Ni + dNi; Nr <- Nr + dNr; Nd <- Nd + dNd
     
-    # get current costs (per capita)
-    HealthCost <-  HealthCost+  fx_per_capita * exp(-parameters$rho * i_day) *parameters$v*new_death
-    SocialActivityCost <- SocialActivityCost+ fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
-    Rt <- calculate_Rt(parameters$R0, a_t, Ns/parameters$pop_size, Ni)
-    
-    # Update states
-    
-    Ns <- Ns + dNs
-    Ni <- Ni + dNi
-    Nr <- Nr + dNr
-    Nd <- Nd + dNd
-    # keep track of the states
-    states_out[i_day+1,] = c(Ns, Ni, Nr, Nd,
-                             HealthCost, SocialActivityCost,
-                             HealthCost + SocialActivityCost,
-                             a_t, u_t, Rt)
+    # Record
+    states_out[i_day+1,] <- c(Ns, Ni, Nr, Nd,
+                              HealthCost, SocialActivityCost,
+                              HealthCost + SocialActivityCost,
+                              a_t, u_t, Rt)
   }
   
-  # return as data.frame
-  return(data.frame(states_out))
+  data.frame(states_out)
 }
 
 # get a vector with the economic summary stats
