@@ -67,11 +67,18 @@ get_transitions_deterministic <- function(n, prob){
   return(transitions)
 }
 
-# to run the SIRD kernel with a for loop and binomial transitions
+# get_transitions_deterministic <- function(n, prob) {
+#   if (length(prob) == n) {
+#     as.integer(round(sum(prob)))
+#   } else {
+#     as.integer(round(n * prob))
+#   }
+# }
+
 run_sir_binomial <- function(initial_state,
                              times,
                              parameters,
-                             update_function = get_transitions_stochastic){ # note: the default is get_infections_determistic()
+                             update_function = get_transitions_stochastic){
   
   # copy initial states
   states <- data.frame(t(initial_state))
@@ -79,32 +86,23 @@ run_sir_binomial <- function(initial_state,
   # convert population fractions into numbers
   states[grepl('N.',names(states))] <- round(states[grepl('N.',names(states))] * parameters$pop_size)
   
-  # make sure the total population size is fixed (by changing Ns if needed)
-  states[grepl('Ns',names(states))] <- parameters$pop_size - sum(states[grepl('N.',names(states)) & !grepl('Ns',names(states))])
+  # keep total population fixed (adjust Ns if needed)
+  states[grepl('Ns',names(states))] <- parameters$pop_size -
+    sum(states[grepl('N.',names(states)) & !grepl('Ns',names(states))])
   
-  # set summary data.table
-  states_out        <- matrix(NA, nrow=length(times), ncol=length(states))
+  # output matrix
+  states_out <- matrix(NA, nrow = length(times), ncol = length(states))
   colnames(states_out) <- names(states)
-  dim(states_out)
   
-  # start with initial states.
-  # note: use single values as parameter is much faster in the iterative process
-  names(states)
-  Ns <- states$Ns
-  Ni <- states$Ni
-  Nr <- states$Nr
-  Nd <- states$Nd
-  HealthCost <- 0
-  SocialActivityCost <- 0
+  # init stocks and costs
+  Ns <- states$Ns; Ni <- states$Ni; Nr <- states$Nr; Nd <- states$Nd
+  HealthCost <- 0; SocialActivityCost <- 0
   
-  # compute some results only once
   fx_per_capita <- parameters$fx / parameters$pop_size
-  
-  # run over times (excl the first one)
   regular_mode <- !is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)
   
   for(i_day in times[-1]){
-    beta_t <- parameters$beta
+    beta_t  <- parameters$beta
     Ns_prop <- Ns / parameters$pop_size
     
     if (regular_mode) {
@@ -112,7 +110,7 @@ run_sir_binomial <- function(initial_state,
       a_t <- 1
       u_t <- 0
       
-      # Infection, recovery, death probabilities (NO a_t^2 factor here)
+      # NOTE: no a_t^2 here in regular mode
       p_infect  <- 1 - exp(- beta_t * (Ni / parameters$pop_size))
       p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)
       p_death   <- 1 - exp(- parameters$pi * parameters$gamma)
@@ -121,6 +119,7 @@ run_sir_binomial <- function(initial_state,
       new_recoveries <- update_function(Ni, prob = p_recover)
       new_death      <- update_function(Ni, prob = p_death)
       
+      # fade-out short-circuit
       if ((Ni - new_recoveries) < parameters$infect_thres) {
         new_recoveries <- Ni
         new_infections <- 0
@@ -131,14 +130,13 @@ run_sir_binomial <- function(initial_state,
       dNr <-  new_recoveries
       dNd <-  new_death
       
-      # Costs: health only
+      # costs: health only
       HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
-      # SocialActivityCost remains unchanged (0 in regular mode)
       
       Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
       
     } else {
-      # ----- Behavioral epi-econ branch (original) -----
+      # ----- Behavioral epi-econ branch -----
       a_t <- a_function(Ni, Ns, parameters)
       u_t <- utility_function(a_t, parameters)
       
@@ -150,6 +148,7 @@ run_sir_binomial <- function(initial_state,
       new_recoveries <- update_function(Ni, prob = p_recover)
       new_death      <- update_function(Ni, prob = p_death)
       
+      # fade-out short-circuit
       if ((Ni - new_recoveries) < parameters$infect_thres) {
         new_recoveries <- Ni
         new_infections <- 0
@@ -161,15 +160,16 @@ run_sir_binomial <- function(initial_state,
       dNd <-  new_death
       
       HealthCost <-  HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
-      SocialActivityCost <- SocialActivityCost + fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
+      SocialActivityCost <- SocialActivityCost +
+        fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
       
       Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
     }
     
-    # Update stocks
+    # update stocks
     Ns <- Ns + dNs; Ni <- Ni + dNi; Nr <- Nr + dNr; Nd <- Nd + dNd
     
-    # Record
+    # record
     states_out[i_day+1,] <- c(Ns, Ni, Nr, Nd,
                               HealthCost, SocialActivityCost,
                               HealthCost + SocialActivityCost,
@@ -179,6 +179,7 @@ run_sir_binomial <- function(initial_state,
   data.frame(states_out)
 }
 
+
 # get a vector with the economic summary stats
 get_summary_stats <- function(sim_output){
   return(c(get_mean_ci_text(sim_output$HealthCost),
@@ -186,15 +187,11 @@ get_summary_stats <- function(sim_output){
            get_mean_ci_text(sim_output$TotalCost)))
 }
 
-###Computing 95% confidence and 'quantile' bands'
-
 # get the mean and CI in text format
 get_mean_ci_text <- function(vect){
-  
-  # if only one value, return this value
   if(length(vect)==1){
     return(vect)
-  } else{ # else, calculate mean and 95% confidence intervals
+  } else{
     summary_value <- ci_mean(vect)
     summary_text  <- paste0(round(summary_value$estimate),' [',
                             paste(round(summary_value$interval),collapse=','),']')
@@ -211,7 +208,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   output_all     <- output_experiments$output_all
   
   # get final states of deterministic model
-  output_summary_deterministic <- output_sim_deterministic[nrow(output_sim_deterministic),]
+  output_summary_deterministic <- output_deterministic[nrow(output_deterministic),]
   
   # option to identify simulations without stochastic fade out
   if(fadeout_threshold > 0){
@@ -280,7 +277,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     # Plot both bands
        plot(NULL,
          xlim = c(0, max(time_vec)),
-         ylim = c(0, max(ci_upper, ci_hi_meanband, output_sim_deterministic[, i_state], na.rm=TRUE)),
+         ylim = c(0, max(ci_upper, ci_hi_meanband, output_deterministic[, i_state], na.rm=TRUE)),
          xlab = 'time', ylab = plot_label, main = plot_label,
          xaxs = "i", yaxs = "i")
     
@@ -294,7 +291,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     lines(time_vec, ci_mean, col="blue", lwd=2)
     
     # Plot deterministic path
-    lines(output_sim_deterministic[,i_state], col="black", lwd=2, lty=2)
+    lines(output_deterministic[,i_state], col="black", lwd=2, lty=2)
     
   }
   # Compute mean and 95% CI for health cost
@@ -424,7 +421,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   
   # prepare summary statistics
   print_out <- data.frame(output=c('Health Cost (per capita)','Social Activity Cost (per capita)','Total Cost (per capita)'),
-                          deterministic = get_summary_stats(output_sim_deterministic[nrow(output_sim_deterministic),]),
+                          deterministic = get_summary_stats(output_deterministic[nrow(output_deterministic),]),
                           stochastic = get_summary_stats(output_summary))
   
   names(print_out)[1] <- plot_tag

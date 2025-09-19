@@ -31,6 +31,7 @@ parameters <- list(
   fx = 123,                # Exchange rate multiplier for USD conversion
   time_horizon = 1500,      # Time of shock
   rng_seed = 150,
+  kappa= 197,
   R0= (3/10+1/7)/(1/7),
   pop_size = 1e4,
   infect_thres = 1,
@@ -40,7 +41,7 @@ parameters <- list(
 parameters$beta <- 0.3 + parameters$gamma
 
 # define number of stochastic runs
-num_experiments <- 5
+num_experiments <- 300
 
 # define fadeout threshold
 fadeout_threshold = 100
@@ -91,162 +92,287 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 # inspect results excl fadeout
 compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
                    fadeout_threshold = fadeout_threshold)
+# #
+# # ==============================
+# # FIGURE: Δ Total Cost (Stochastic − Deterministic) vs Number of Simulations
+# # ==============================
+# 
+# # Grid of simulation counts (log-spaced so it runs faster but shows trend nicely)
+# n_grid <- seq(100, 1000, length.out = 10)
+# fadeout_threshold_for_diff <- 100  # set 0 to include all; uses the same logic as elsewhere
+# 
+# # Initial state and time grid (use your current time_horizon)
+# init_state <- c(Ns = parameters$ns0, Ni = parameters$ni0, Nr = parameters$nr0, Nd = parameters$nd0,
+#                 HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
+#                 a_t = NA, u_t = NA, Rt = NA)
+# times <- 0:parameters$time_horizon
+# 
+# # Deterministic baseline (run once)
+# det_out <- run_sir_binomial(
+#   initial_state = init_state, times = times, parameters = parameters,
+#   update_function = get_transitions_deterministic
+# )
+# det_total <- det_out[nrow(det_out), "TotalCost"]
+# 
+# # Storage
+# diff_df <- data.frame(
+#   num_sims   = integer(),
+#   det_total  = numeric(),
+#   stoch_mean = numeric(),
+#   stoch_ci_lo = numeric(),
+#   stoch_ci_hi = numeric(),
+#   diff_mean  = numeric(),   # (stoch_mean - det_total)
+#   diff_ci_lo = numeric(),   # (stoch_ci_lo - det_total)
+#   diff_ci_hi = numeric()    # (stoch_ci_hi - det_total)
+# )
+# 
+# for (N in n_grid) {
+#   # Run N stochastic experiments
+#   sims <- run_experiments(
+#     initial_state = init_state, times = times, parameters = parameters,
+#     update_function = get_transitions_stochastic,
+#     num_experiments = N
+#   )
+# 
+#   # Optionally exclude fadeouts
+#   summ <- sims$output_summary
+#   if (fadeout_threshold_for_diff > 0) {
+#     keep <- (summ$Nr + summ$Ni) >= fadeout_threshold_for_diff
+#     if (!any(keep)) {
+#       message(sprintf("All %d sims filtered out at N=%d; skipping this point.", nrow(summ), N))
+#       next
+#     }
+#     summ <- summ[keep, , drop = FALSE]
+#   }
+# 
+#   # 95% CI for the mean stochastic total cost (uses {confintr})
+#   stoch_ci <- ci_mean(summ$TotalCost)
+#   stoch_mean <- as.numeric(stoch_ci$estimate)
+#   stoch_lo   <- as.numeric(stoch_ci$interval[1])
+#   stoch_hi   <- as.numeric(stoch_ci$interval[2])
+# 
+#   # Differences vs deterministic
+#   diff_mean <- stoch_mean - det_total
+#   diff_lo   <- stoch_lo   - det_total
+#   diff_hi   <- stoch_hi   - det_total
+# 
+#   diff_df <- rbind(diff_df, data.frame(
+#     num_sims = N,
+#     det_total = det_total,
+#     stoch_mean = stoch_mean,
+#     stoch_ci_lo = stoch_lo,
+#     stoch_ci_hi = stoch_hi,
+#     diff_mean = diff_mean,
+#     diff_ci_lo = diff_lo,
+#     diff_ci_hi = diff_hi
+#   ))
+# }
+# 
+# # Ensure output dir
+# if (!dir.exists("figures")) dir.create("figures")
+# 
+# # Plot
+# library(ggplot2)
+# p_diff_nsims <- ggplot(diff_df, aes(x = num_sims, y = diff_mean)) +
+#   geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), fill="lightblue", alpha = 0.25) +
+#   geom_line(size = 1) +
+#   geom_point(size = 1.8) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   scale_x_continuous(breaks = n_grid) +
+#   labs(
+#     title = "Impact of simulations on difference in total cost",
+#    # subtitle = paste0("Stochastic mean − Deterministic"),
+#     x = "Number of stochastic simulations",
+#     y = "Cost difference"
+#   ) +
+#   theme_minimal(base_size = 12)
+# 
+# print(p_diff_nsims)
+# ggsave("figures/diff_totalcost_vs_num_sims.pdf", p_diff_nsims, width = 8, height = 5)
+# ggsave("figures/diff_totalcost_vs_num_sims.png", p_diff_nsims, width = 8, height = 5, dpi = 200)
+# 
+# # Optional: inspect the table
+# print(diff_df)
 
 
-# ==============================
-# MULTI-PARAMETER SENSITIVITY ANALYSIS
-# ==============================
-
-baseline_params <- parameters
-
-# convenient helpers for baseline values
-baseline_beta  <- baseline_params$beta          # ~0.442857
-baseline_gamma <- baseline_params$gamma         # ~0.142857
-#-
-# labels for plots
-param_labels <- list(
-  time_horizon = "time horizon",
-  v            = "value of life (v)",
-  beta         = expression(beta),
-  pi           = expression(pi),
-  gamma        = expression(gamma),
-  ni0          = expression(N[i0]),
-  pop_size     = "population size",
-  rho          = expression(rho)
-)
-
-make_labels <- function(key) {
-  lab <- param_labels[[key]]
-  if (is.null(lab)) {
-    fallback <- gsub("_", " ", key)
-    return(list(
-      title = paste("Sensitivity of total cost to", fallback),
-      x     = paste("Value of", fallback)
-    ))
-  }
-  if (is.expression(lab)) {
-    sym <- lab[[1]]
-    return(list(
-      title = bquote("Sensitivity of total cost to " ~ .(sym)),
-      x     = bquote("Value of " ~ .(sym))
-    ))
-  } else {
-    return(list(
-      title = paste("Sensitivity of total cost to", lab),
-      x     = paste("Value of", lab)
-    ))
-  }
-}
-
-# ranges: β centered on baseline ±0.3; γ from 1/14 .. 1/3
-beta_halfwidth <- (0.7 - 0.1) / 2  # = 0.3
-param_ranges <- list(
-  time_horizon = seq(200, 2000, length.out = 10),
-  v            = seq(10000, 50000, length.out = 10),
-  beta         = seq(baseline_beta - beta_halfwidth,
-                     baseline_beta + beta_halfwidth,
-                     length.out = 10),
-  pi           = seq(0.001, 0.01, length.out = 10),
-  gamma        = seq(1/14, 1/3, length.out = 10),
-  ni0          = seq(0.0005, 0.05, length.out = 10),
-  pop_size     = round(seq(10000, 100000, length.out = 10)),
-  rho          = seq(0, 0.2/365, length.out = 10)
-)
-
-pdf("sensitivity_all.pdf", width = 8, height = 6)
-
-for (sensitivity_target in names(param_ranges)) {
-  cat("Running sensitivity for:", sensitivity_target, "\n")
-
-  # reset to baseline each target
-  parameters <- baseline_params
-
-  # build grid for the current target
-  param_grid <- data.frame(value = param_ranges[[sensitivity_target]])
-  colnames(param_grid) <- sensitivity_target
-
-  baseline_value <- baseline_params[[sensitivity_target]]
-  
-
-  sensitivity_results <- data.frame()
-
-  for (i in 1:nrow(param_grid)) {
-    cat("  Scenario", i, "of", nrow(param_grid), "\n")
-    parameters <- baseline_params  # fresh copy each scenario
-
-    val <- param_grid[[sensitivity_target]][i]
-    parameters[[sensitivity_target]] <- val
-    # keep R0 consistent after any parameter change (including beta/gamma)
-    parameters$R0 <- parameters$beta / parameters$gamma
-    
-
-    # Initial state and runs
-    initial_state <- c(
-      Ns = parameters$ns0, Ni = parameters$ni0, Nr = parameters$nr0, Nd = parameters$nd0,
-      HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
-      a_t = NA, u_t = NA, Rt = NA
-    )
-    times <- seq(0, parameters$time_horizon, by = 1)
-
-    output_det <- run_sir_binomial(
-      initial_state, times, parameters,
-      update_function = get_transitions_deterministic
-    )
-    total_cost_det <- output_det[nrow(output_det), "TotalCost"]
-
-    output_stoch <- run_experiments(
-      initial_state, times, parameters,
-      get_transitions_stochastic, num_experiments
-    )
-    total_costs_stoch <- sapply(
-      1:num_experiments,
-      function(j) output_stoch$output_all[j, length(times), "TotalCost"]
-    )
-
-    mean_cost_stoch <- mean(total_costs_stoch)
-    q_lo <- quantile(total_costs_stoch, 0.025); q_hi <- quantile(total_costs_stoch, 0.975)
-    se <- sd(total_costs_stoch) / sqrt(num_experiments)
-    ci_lower <- mean_cost_stoch - 1.96 * se; ci_upper <- mean_cost_stoch + 1.96 * se
-
-    sensitivity_results <- rbind(
-      sensitivity_results,
-      data.frame(Parameter = sensitivity_target, Value = val, Type = "Deterministic",
-                 TotalCost = total_cost_det, Q025 = NA, Q975 = NA, CI025 = NA, CI975 = NA),
-      data.frame(Parameter = sensitivity_target, Value = val, Type = "Stochastic",
-                 TotalCost = mean_cost_stoch, Q025 = q_lo, Q975 = q_hi, CI025 = ci_lower, CI975 = ci_upper)
-    )
-  }
-
-  sensitivity_results <- sensitivity_results[order(sensitivity_results$Type, sensitivity_results$Value), ]
-
-  labs_ <- make_labels(sensitivity_target)
-  out_csv <- paste0("sensitivity_", sensitivity_target, ".csv")
-  write.csv(sensitivity_results, out_csv, row.names = FALSE)
-
-  p <- ggplot(sensitivity_results, aes(x = Value, y = TotalCost, color = Type, group = Type)) +
-    geom_ribbon(data = subset(sensitivity_results, Type == "Stochastic"),
-                aes(ymin = Q025, ymax = Q975, fill = "95% Credible Interval"),
-                alpha = 0.2, inherit.aes = TRUE) +
-    geom_ribbon(data = subset(sensitivity_results, Type == "Stochastic"),
-                aes(ymin = CI025, ymax = CI975, fill = "95% Confidence Interval"),
-                alpha = 0.3, inherit.aes = TRUE) +
-    geom_line(data = subset(sensitivity_results, Type == "Stochastic"),
-              aes(y = CI025), linetype = "solid", size = 0.7) +
-    geom_line(data = subset(sensitivity_results, Type == "Stochastic"),
-              aes(y = CI975), linetype = "solid", size = 0.7) +
-    geom_line(size = 1) +
-    geom_point(size = 2) +
-    geom_vline(xintercept = baseline_value, linetype = "dashed", size = 1, alpha = 0.8) +
-    labs(title = labs_$title, x = labs_$x, y = "Total cost (per capita)") +
-    theme_minimal() +
-    scale_color_manual(values = c("Deterministic" = "black", "Stochastic" = "steelblue"), guide = "none") +
-    scale_fill_manual(values = c("95% Credible Interval" = "steelblue",
-                                 "95% Confidence Interval" = "red"),
-                      guide = "none") +
-    theme(legend.position = "none")
-
-  print(p)
-}
-
-dev.off()
-
+# # ==============================
+# # SENSITIVITY: Δ Total Cost (Stochastic − Deterministic)
+# # ==============================
+# 
+# # --- Config ---
+# baseline_params <- parameters
+# baseline_params$kappa <- baseline_params$pi * baseline_params$v  # define kappa from pi & v
+# num_experiments_sens <- 300        # tweak as needed
+# fadeout_threshold_for_diff <- 100    # set 0 to include all
+# if (!dir.exists("figures")) dir.create("figures")
+# 
+# suppressPackageStartupMessages({
+#   library(ggplot2)
+#   library(confintr)
+#   # library(Cairo) # <- uncomment + use CairoPDF() below if you see font issues in PDFs
+# })
+# 
+# # --- Sensitivity grids (adjust as you like) ---
+# beta_halfwidth <- (0.7 - 0.1) / 2  # = 0.3
+# param_ranges <- list(
+#   time_horizon = seq(200, 2000, length.out = 10),
+#   kappa        = seq(50, 500, length.out = 10),   # instead of pi and v
+#   beta         = seq(baseline_params$beta - beta_halfwidth,
+#                      baseline_params$beta + beta_halfwidth,
+#                      length.out = 10),
+#   gamma        = seq(1/14, 1/3, length.out = 10),
+#   Ni0          = round(seq(baseline_params$ni0 * baseline_params$pop_size,
+#                            0.05 * baseline_params$pop_size,
+#                            length.out = 10)),
+#   pop_size     = round(seq(10000, 100000, length.out = 10)),
+#   rho          = seq(0, 0.2/365, length.out = 10)
+# )
+# 
+# # --- Math-safe axis labels (plotmath expressions) ---
+# x_label_expr <- function(param_name) {
+#   switch(param_name,
+#          "beta"         = expression(paste("Value of ", beta, " (transmission rate)")),
+#          "gamma"        = expression(paste("Value of ", gamma, " (recovery rate)")),
+#          "rho"          = expression(paste("Value of ", rho, " (discount rate)")),
+#          "kappa"        = expression(paste("Value of ", kappa, " (infection cost parameter)")),
+#          "Ni0"          = expression(paste("Value of ", N[i](0), " (initial infected)")),
+#          "pop_size"     = "Value of population size",
+#          "time_horizon" = "Value of time horizon",
+#          as.expression(bquote(.(paste0("Value of ", gsub("_", " ", param_name)))))
+#   )
+# }
+# 
+# # --- Titles that correspond to the variable name (matching x-axis) ---
+# title_expr <- function(param_name) {
+#   switch(param_name,
+#          "beta"         = expression(paste("Total cost difference for different values of ", beta)),
+#          "gamma"        = expression(paste("Total cost difference for different values of ", gamma)),
+#          "rho"          = expression(paste("Total cost difference for different values of ", rho)),
+#          "kappa"        = expression(paste("Total cost difference for different values of ", kappa)),
+#          "Ni0"          = expression(paste("Total cost difference for different values of ", N[i](0))),
+#          "pop_size"     = "Total cost difference for different values of population size",
+#          "time_horizon" = "Total cost difference for different values of time horizon",
+#          as.expression(bquote(.(paste("Total cost difference for different values of", param_name))))
+#   )
+# }
+# 
+# run_sensitivity_diff <- function(param_name, values) {
+#   cat("Running Δ-cost sensitivity for:", param_name, "\n")
+#   results <- data.frame()
+#   
+#   for (i in seq_along(values)) {
+#     val <- values[i]
+#     cat(sprintf("  %s = %s (%d/%d)\n", param_name, format(val, digits = 6), i, length(values)))
+#     
+#     # Copy + set parameter under test
+#     params <- baseline_params
+#     if (param_name == "Ni0") {
+#       params$ni0 <- val / params$pop_size
+#     } else if (param_name == "kappa") {
+#       # overwrite v based on fixed pi so that v = kappa / pi
+#       params$kappa <- val
+#       params$v <- val / params$pi
+#     } else {
+#       params[[param_name]] <- val
+#     }
+#     params$R0 <- params$beta / params$gamma
+#     
+#     # Initial state and horizon
+#     init_state <- c(
+#       Ns = params$ns0, Ni = params$ni0, Nr = params$nr0, Nd = params$nd0,
+#       HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
+#       a_t = NA, u_t = NA, Rt = NA
+#     )
+#     times <- 0:params$time_horizon
+#     
+#     # Deterministic run
+#     det_out <- run_sir_binomial(
+#       initial_state = init_state, times = times, parameters = params,
+#       update_function = get_transitions_deterministic
+#     )
+#     det_total <- det_out[nrow(det_out), "TotalCost"]
+#     
+#     # Stochastic experiments
+#     sims <- run_experiments(
+#       initial_state = init_state, times = times, parameters = params,
+#       update_function = get_transitions_stochastic,
+#       num_experiments = num_experiments_sens
+#     )
+#     summ <- sims$output_summary
+#     
+#     # Optional filtering for fadeout (use Nr + Ni as observed size)
+#     if (fadeout_threshold_for_diff > 0) {
+#       keep <- (summ$Nr + summ$Ni) >= fadeout_threshold_for_diff
+#       if (!any(keep)) {
+#         warning(sprintf("All sims filtered out for %s=%s; skipping point.", param_name, as.character(val)))
+#         next
+#       }
+#       summ <- summ[keep, , drop = FALSE]
+#     }
+#     
+#     # CI/quantiles on stochastic totals
+#     stoch_totals <- summ$TotalCost
+#     ci <- ci_mean(stoch_totals)
+#     mean_stoch <- as.numeric(ci$estimate)
+#     ci_lo <- as.numeric(ci$interval[1]); ci_hi <- as.numeric(ci$interval[2])
+#     q <- quantile(stoch_totals, c(0.025, 0.975), na.rm = TRUE)
+#     q_lo <- as.numeric(q[1]); q_hi <- as.numeric(q[2])
+#     
+#     # Differences (stochastic − deterministic)
+#     diff_mean <- mean_stoch - det_total
+#     diff_ci_lo <- ci_lo - det_total; diff_ci_hi <- ci_hi - det_total
+#     diff_q_lo  <- q_lo  - det_total; diff_q_hi  <- q_hi  - det_total
+#     
+#     results <- rbind(results, data.frame(
+#       Parameter = param_name, Value = val,
+#       Det_Total = det_total, Stoch_Mean = mean_stoch,
+#       CI_Lo = ci_lo, CI_Hi = ci_hi, Q_Lo = q_lo, Q_Hi = q_hi,
+#       Diff_Mean = diff_mean, Diff_CI_Lo = diff_ci_lo, Diff_CI_Hi = diff_ci_hi,
+#       Diff_Q_Lo  = diff_q_lo,  Diff_Q_Hi  = diff_q_hi
+#     ))
+#   }
+#   
+#   # Plot with math-safe labels/titles
+#   p <- ggplot(results, aes(x = Value, y = Diff_Mean)) +
+#     geom_ribbon(aes(ymin = Diff_Q_Lo, ymax = Diff_Q_Hi,
+#                     fill = "95% Credible Interval"), alpha = 0.20) +
+#     geom_ribbon(aes(ymin = Diff_CI_Lo, ymax = Diff_CI_Hi,
+#                     fill = "95% Confidence Interval"), alpha = 0.30) +
+#     geom_line(size = 1, color = "black") +
+#     geom_point(size = 2, color = "black") +
+#     geom_hline(yintercept = 0, linetype = "dashed") +
+#     labs(
+#       title = title_expr(param_name),
+#       x     = x_label_expr(param_name),
+#       y     = "Cost difference"
+#     ) +
+#     theme_minimal(base_size = 12) +
+#     scale_fill_manual(values = c("95% Credible Interval" = "steelblue",
+#                                  "95% Confidence Interval" = "red"),
+#                       guide = "none")
+#   
+#   print(p)
+#   return(results)
+# }
+# 
+# # --- Run for all parameters in param_ranges, save to ONE pdf ---
+# out_pdf_all <- "figures/sensitivity_diff_ALL.pdf"
+# 
+# # If fonts render oddly, use CairoPDF() instead of pdf():
+# # Cairo::CairoPDF(out_pdf_all, width = 8, height = 5)
+# pdf(out_pdf_all, width = 8, height = 5)
+# 
+# all_results <- list()
+# for (sensitivity_target in names(param_ranges)) {
+#   results <- run_sensitivity_diff(sensitivity_target, param_ranges[[sensitivity_target]])
+#   all_results[[sensitivity_target]] <- results
+# }
+# dev.off()
+# 
+# # Optional: combined CSV with all results
+# sensitivity_results_all <- do.call(rbind, all_results)
+# write.csv(sensitivity_results_all, "sensitivity_diff_ALL.csv", row.names = FALSE)
+# 
+# cat("Saved PDF to:", out_pdf_all, "\n")
+# cat("Saved CSV to: sensitivity_diff_ALL.csv\n")
+# 
