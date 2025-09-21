@@ -93,108 +93,108 @@ compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binom
 compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
                    fadeout_threshold = fadeout_threshold)
 #
-# ==============================
-# FIGURE: Δ Total Cost (Stochastic − Deterministic) vs Number of Simulations
-# ==============================
-
-# Grid of simulation counts
-n_grid <- seq(100, 1000, length.out = 10)
-fadeout_threshold_for_diff <- 100  # set 0 to include all; uses the same logic as elsewhere
-
-# Initial state and time grid (use your current time_horizon)
-init_state <- c(Ns = parameters$ns0, Ni = parameters$ni0, Nr = parameters$nr0, Nd = parameters$nd0,
-                HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
-                a_t = NA, u_t = NA, Rt = NA)
-times <- 0:parameters$time_horizon
-
-# Deterministic baseline (run once)
-det_out <- run_sir_binomial(
-  initial_state = init_state, times = times, parameters = parameters,
-  update_function = get_transitions_deterministic
-)
-det_total <- det_out[nrow(det_out), "TotalCost"]
-
-# Storage
-diff_df <- data.frame(
-  num_sims   = integer(),
-  det_total  = numeric(),
-  stoch_mean = numeric(),
-  stoch_ci_lo = numeric(),
-  stoch_ci_hi = numeric(),
-  diff_mean  = numeric(),   # (stoch_mean - det_total)
-  diff_ci_lo = numeric(),   # (stoch_ci_lo - det_total)
-  diff_ci_hi = numeric()    # (stoch_ci_hi - det_total)
-)
-
-for (N in n_grid) {
-  # Run N stochastic experiments
-  sims <- run_experiments(
-    initial_state = init_state, times = times, parameters = parameters,
-    update_function = get_transitions_stochastic,
-    num_experiments = N
-  )
-
-  # Optionally exclude fadeouts
-  summ <- sims$output_summary
-  if (fadeout_threshold_for_diff > 0) {
-    keep <- (summ$Nr + summ$Ni) >= fadeout_threshold_for_diff
-    if (!any(keep)) {
-      message(sprintf("All %d sims filtered out at N=%d; skipping this point.", nrow(summ), N))
-      next
-    }
-    summ <- summ[keep, , drop = FALSE]
-  }
-
-  # 95% CI for the mean stochastic total cost (uses {confintr})
-  stoch_ci <- ci_mean(summ$TotalCost)
-  stoch_mean <- as.numeric(stoch_ci$estimate)
-  stoch_lo   <- as.numeric(stoch_ci$interval[1])
-  stoch_hi   <- as.numeric(stoch_ci$interval[2])
-
-
-  # Differences vs deterministic
-  diff_mean <- stoch_mean - det_total
-  diff_lo   <- stoch_lo   - det_total
-  diff_hi   <- stoch_hi   - det_total
-
-  diff_df <- rbind(diff_df, data.frame(
-    num_sims = N,
-    det_total = det_total,
-    stoch_mean = stoch_mean,
-    stoch_ci_lo = stoch_lo,
-    stoch_ci_hi = stoch_hi,
-    diff_mean = diff_mean,
-    diff_ci_lo = diff_lo,
-    diff_ci_hi = diff_hi
-  ))
-}
-
-# Ensure output dir
-if (!dir.exists("figures")) dir.create("figures")
-
-# Plot
-library(ggplot2)
-p_diff_nsims <- ggplot(diff_df, aes(x = num_sims, y = diff_mean)) +
-  geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), fill="red", alpha = 0.25) +
-  geom_line(size = 1) +
-  geom_point(size = 1.8) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  scale_x_continuous(breaks = n_grid) +
-  labs(
-    title = "Impact of simulations on difference in total cost",
-    x = "Number of stochastic simulations",
-    y = "Cost difference"
-  ) +
-  theme_minimal(base_size = 12)
-
-print(p_diff_nsims)
-ggsave("figures/diff_totalcost_vs_num_sims.pdf", p_diff_nsims, width = 8, height = 5)
-ggsave("figures/diff_totalcost_vs_num_sims.png", p_diff_nsims, width = 8, height = 5, dpi = 200)
-
-# Optional: inspect the table
-print(diff_df)
-
+# # ==============================
+# # FIGURE: Δ Total Cost (Stochastic − Deterministic) vs Number of Simulations
+# # ==============================
 # 
+# # Grid of simulation counts
+# n_grid <- seq(100, 1000, length.out = 10)
+# fadeout_threshold_for_diff <- 100  # set 0 to include all; uses the same logic as elsewhere
+# 
+# # Initial state and time grid (use your current time_horizon)
+# init_state <- c(Ns = parameters$ns0, Ni = parameters$ni0, Nr = parameters$nr0, Nd = parameters$nd0,
+#                 HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
+#                 a_t = NA, u_t = NA, Rt = NA)
+# times <- 0:parameters$time_horizon
+# 
+# # Deterministic baseline (run once)
+# det_out <- run_sir_binomial(
+#   initial_state = init_state, times = times, parameters = parameters,
+#   update_function = get_transitions_deterministic
+# )
+# det_total <- det_out[nrow(det_out), "TotalCost"]
+# 
+# # Storage
+# diff_df <- data.frame(
+#   num_sims   = integer(),
+#   det_total  = numeric(),
+#   stoch_mean = numeric(),
+#   stoch_ci_lo = numeric(),
+#   stoch_ci_hi = numeric(),
+#   diff_mean  = numeric(),   # (stoch_mean - det_total)
+#   diff_ci_lo = numeric(),   # (stoch_ci_lo - det_total)
+#   diff_ci_hi = numeric()    # (stoch_ci_hi - det_total)
+# )
+# 
+# for (N in n_grid) {
+#   # Run N stochastic experiments
+#   sims <- run_experiments(
+#     initial_state = init_state, times = times, parameters = parameters,
+#     update_function = get_transitions_stochastic,
+#     num_experiments = N
+#   )
+# 
+#   # Optionally exclude fadeouts
+#   summ <- sims$output_summary
+#   if (fadeout_threshold_for_diff > 0) {
+#     keep <- (summ$Nr + summ$Ni) >= fadeout_threshold_for_diff
+#     if (!any(keep)) {
+#       message(sprintf("All %d sims filtered out at N=%d; skipping this point.", nrow(summ), N))
+#       next
+#     }
+#     summ <- summ[keep, , drop = FALSE]
+#   }
+# 
+#   # 95% CI for the mean stochastic total cost (uses {confintr})
+#   stoch_ci <- ci_mean(summ$TotalCost)
+#   stoch_mean <- as.numeric(stoch_ci$estimate)
+#   stoch_lo   <- as.numeric(stoch_ci$interval[1])
+#   stoch_hi   <- as.numeric(stoch_ci$interval[2])
+# 
+# 
+#   # Differences vs deterministic
+#   diff_mean <- stoch_mean - det_total
+#   diff_lo   <- stoch_lo   - det_total
+#   diff_hi   <- stoch_hi   - det_total
+# 
+#   diff_df <- rbind(diff_df, data.frame(
+#     num_sims = N,
+#     det_total = det_total,
+#     stoch_mean = stoch_mean,
+#     stoch_ci_lo = stoch_lo,
+#     stoch_ci_hi = stoch_hi,
+#     diff_mean = diff_mean,
+#     diff_ci_lo = diff_lo,
+#     diff_ci_hi = diff_hi
+#   ))
+# }
+# 
+# # Ensure output dir
+# if (!dir.exists("figures")) dir.create("figures")
+# 
+# # Plot
+# library(ggplot2)
+# p_diff_nsims <- ggplot(diff_df, aes(x = num_sims, y = diff_mean)) +
+#   geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), fill="red", alpha = 0.25) +
+#   geom_line(size = 1) +
+#   geom_point(size = 1.8) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   scale_x_continuous(breaks = n_grid) +
+#   labs(
+#     title = "Impact of simulations on difference in total cost",
+#     x = "Number of stochastic simulations",
+#     y = "Cost difference"
+#   ) +
+#   theme_minimal(base_size = 12)
+# 
+# print(p_diff_nsims)
+# ggsave("figures/diff_totalcost_vs_num_sims.pdf", p_diff_nsims, width = 8, height = 5)
+# ggsave("figures/diff_totalcost_vs_num_sims.png", p_diff_nsims, width = 8, height = 5, dpi = 200)
+# 
+# # Optional: inspect the table
+# print(diff_df)
+
+
 # # ==============================
 # # SENSITIVITY: Δ Total Cost (Stochastic − Deterministic)
 # # ==============================
@@ -213,7 +213,7 @@ print(diff_df)
 # param_ranges <- list(
 #   time_horizon = seq(200, 2000, length.out = 10),
 #   kappa        = seq(50, 500, length.out = 10),   # instead of pi and v
-#   beta         = seq(0.1, 0.7, length.out = 10),
+#   beta         = seq(0.15, 0.65, length.out = 10),
 #   gamma        = seq(1/14, 1/3, length.out = 10),
 #   Ni0          = round(seq(baseline_params$ni0 * baseline_params$pop_size,
 #                            0.05 * baseline_params$pop_size,
@@ -335,12 +335,12 @@ print(diff_df)
 #   )
 #   # If the x grid is integer (e.g., Ni0, pop_size), match the scale for aesthetics
 #   if (param_name %in% c("Ni0", "pop_size")) baseline_val <- as.integer(round(baseline_val))
-#   
+# 
 #   # Only draw the vline if baseline is within plotting range
 #   add_baseline <- (baseline_val >= min(results$Value, na.rm = TRUE)) &&
 #     (baseline_val <= max(results$Value, na.rm = TRUE))
-#   
-#   
+# 
+# 
 #   # Plot with math-safe labels/titles
 #   p <- ggplot(results, aes(x = Value, y = Diff_Mean)) +
 #     geom_ribbon(aes(ymin = Diff_Q_Lo, ymax = Diff_Q_Hi,
@@ -361,8 +361,8 @@ print(diff_df)
 #     scale_fill_manual(values = c("95% Quantile Interval" = "steelblue",
 #                                  "95% Confidence Interval" = "red"),
 #                       guide = "none")
-#   
-#   
+# 
+# 
 # 
 #   print(p)
 #   return(results)
