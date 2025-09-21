@@ -67,14 +67,6 @@ get_transitions_deterministic <- function(n, prob){
   return(transitions)
 }
 
-# get_transitions_deterministic <- function(n, prob) {
-#   if (length(prob) == n) {
-#     as.integer(round(sum(prob)))
-#   } else {
-#     as.integer(round(n * prob))
-#   }
-# }
-
 run_sir_binomial <- function(initial_state,
                              times,
                              parameters,
@@ -102,7 +94,7 @@ run_sir_binomial <- function(initial_state,
   regular_mode <- !is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)
   
   for(i_day in times[-1]){
-    beta_t  <- parameters$beta
+    beta_t <- parameters$beta
     Ns_prop <- Ns / parameters$pop_size
     
     if (regular_mode) {
@@ -224,9 +216,6 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   
   pdf(file = paste0("figures/", gsub("[^[:alnum:]]", "_", plot_tag), ".pdf"))
   
-  # set figure sub panels
-  #par(mfrow=c(3,4))
-  
   # explore costs
   output_cost <- output_summary[,grepl('Cost',names(output_summary))]
   y_lim <- range(output_cost)
@@ -240,7 +229,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   sel_states <- names(initial_state)[!grepl('Total',names(initial_state)) & !grepl('Ns',names(initial_state))]
   
   # Label mapping for selected variables
-  pretty_labels <- c(
+  labels <- c(
     "a_t" = "Activity",
     "Ni" = "Infectives",
     "Ns" = "Susceptibles",
@@ -254,7 +243,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   )
   
   for(i_state in sel_states){
-    plot_label <- ifelse(i_state %in% names(pretty_labels), pretty_labels[[i_state]], i_state)
+    plot_label <- ifelse(i_state %in% names(labels), labels[[i_state]], i_state)
     
     # Extract simulation matrix: [experiment, time]
     var_matrix <- output_all[,,i_state]
@@ -275,11 +264,16 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     ci_hi_meanband <- ci_mean + 1.96 * ci_se
     
     # Plot both bands
-       plot(NULL,
-         xlim = c(0, max(time_vec)),
-         ylim = c(0, max(ci_upper, ci_hi_meanband, output_deterministic[, i_state], na.rm=TRUE)),
-         xlab = 'time', ylab = plot_label, main = plot_label,
-         xaxs = "i", yaxs = "i")
+    
+    # choose y-lims that include the lower bands (can be negative for Utility)
+    y_min <- min(ci_lower, ci_lo_meanband, output_deterministic[, i_state], na.rm = TRUE)
+    y_max <- max(ci_upper, ci_hi_meanband, output_deterministic[, i_state], na.rm = TRUE)
+    
+    plot(NULL,
+         xlim = c(min(time_vec), max(time_vec)),
+         ylim = c(y_min, y_max),
+         xlab = "time", ylab = plot_label, main = plot_label)
+    abline(h = 0, lty = 3, col = "grey60")
     
     # Plot quantile-based (light blue)
     polygon(c(time_vec, rev(time_vec)), c(ci_upper, rev(ci_lower)), col=alpha("lightblue", 0.4), border=NA)
@@ -309,13 +303,13 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   
   
   
-  ### Credible and confidence interval values calculation ###
-  # 1. Health Cost Credible Interval % differences
+  ### Quantile and confidence interval values calculation ###
+  # 1. Health Cost Quantile Interval % differences
   health_quant <- quantile(output_summary$HealthCost, probs = c(0.025, 0.975), na.rm = TRUE)
   pct_health_upper = 100 * (health_quant[2] - mean_health) / mean_health
   pct_health_lower = 100 * (mean_health - health_quant[1]) / mean_health
   
-  # 2. Activity Cost Credible Interval % differences
+  # 2. Activity Cost Quantile Interval % differences
   mean_activity_cost <- mean(output_summary$SocialActivityCost, na.rm = TRUE)
   activity_quant <- quantile(output_summary$SocialActivityCost, probs = c(0.025, 0.975), na.rm = TRUE)
   pct_activity_upper = 100 * (activity_quant[2] - mean_activity_cost) / mean_activity_cost
@@ -341,7 +335,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   a_mean <- mean(a_vals, na.rm = TRUE)
   ni_mean <- mean(ni_vals, na.rm = TRUE)
   
-  # Credible intervals
+  # Quantile intervals
   a_q <- quantile(a_vals, probs = c(0.025, 0.975), na.rm = TRUE)
   ni_q <- quantile(ni_vals, probs = c(0.025, 0.975), na.rm = TRUE)
   
@@ -349,7 +343,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   a_det <- output_deterministic[t_peak, "a_t"]
   ni_det <- output_deterministic[t_peak, "Ni"]
   
-  # Credible interval width (% from mean)
+  # Quantile interval width (% from mean)
   pct_a_upper = 100 * (a_q[2] - a_mean) / a_mean
   pct_a_lower = 100 * (a_mean - a_q[1]) / a_mean
   pct_ni_upper = 100 * (ni_q[2] - ni_mean) / ni_mean
@@ -361,14 +355,14 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   
   # ==== OUTPUT ====
   cat("\nCOST DIFFERENCES (BOXPLOT METRICS)\n")
-  cat(sprintf("Health Cost – Credible Interval: +%.2f%% / -%.2f%%\n", pct_health_upper, pct_health_lower))
-  cat(sprintf("Activity Cost – Credible Interval: +%.2f%% / -%.2f%%\n", pct_activity_upper, pct_activity_lower))
+  cat(sprintf("Health Cost – Quantile Interval: +%.2f%% / -%.2f%%\n", pct_health_upper, pct_health_lower))
+  cat(sprintf("Activity Cost – Quantile Interval: +%.2f%% / -%.2f%%\n", pct_activity_upper, pct_activity_lower))
   cat(sprintf("Health Cost – Stochastic vs Det: %.2f%%\n", pct_health_mean_diff))
   cat(sprintf("Activity Cost – Stochastic vs Det: %.2f%%\n", pct_activity_mean_diff))
   
   cat("\nPEAK-TIME DIFFERENCES (Ni and a_t at peak Ni)\n")
-  cat(sprintf("Activity a(t) – Credible Interval: +%.2f%% / -%.2f%%\n", pct_a_upper, pct_a_lower))
-  cat(sprintf("Infectives Ni – Credible Interval: +%.2f%% / -%.2f%%\n", pct_ni_upper, pct_ni_lower))
+  cat(sprintf("Activity a(t) – Quantile Interval: +%.2f%% / -%.2f%%\n", pct_a_upper, pct_a_lower))
+  cat(sprintf("Infectives Ni – Quantile Interval: +%.2f%% / -%.2f%%\n", pct_ni_upper, pct_ni_lower))
   cat(sprintf("Activity a(t) – Stochastic vs Det: %.2f%%\n", pct_a_mean_diff))
   cat(sprintf("Infectives Ni – Stochastic vs Det: %.2f%%\n", pct_ni_mean_diff))
   
@@ -381,7 +375,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
           col = "gray90")
   
   # Add stochastic mean
-  points(1, mean(output_summary$HealthCost, na.rm = TRUE), pch = 8)
+ # points(1, mean(output_summary$HealthCost, na.rm = TRUE), pch = 8)
   
   # Add 95% confidence interval
   
