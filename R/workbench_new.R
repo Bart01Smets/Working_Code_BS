@@ -19,17 +19,17 @@ source("R/epi_econ_lib_new.R")
 
 # Parameters
 parameters <- list(
-  gamma = 1/7,             # Recovery rate (γ) 1/7, alternatively 1/4
-  beta = 3/10+1/7,       # Transmission rate (β) 3/10
+  gamma = 1/7,             # Recovery rate (γ) 
+  beta = 3/10+1/7,       # Transmission rate (β)
   rho = 0.05 / 365,        # Discounting rate (ρ)
-  pi = 0.0062,             # Infection fatality rate (π)
-  ni0 = 0.0005,         # Initial infected population (Ni0)
-  ns0 = 0.9995,     # Initial susceptible population (Ns0)
-  nr0 = 0,                 # Initial recovered population (Nr0)
-  nd0 = 0, # Initial dead population (Nd0)
+  pi = 0.0062,             # Infection fatality probability (π)
+  ni0 = 0.0005,         # Initial infected population (ni0)
+  ns0 = 0.9995,     # Initial susceptible population (ns0)
+  nr0 = 0,                 # Initial recovered population (nr0)
+  nd0 = 0,             # Initial dead population (nd0)
   v = 31755,
   fx = 123,                # Exchange rate multiplier for USD conversion
-  time_horizon = 1500,      # Time of shock
+  time_horizon = 1500,     
   rng_seed = 150,
   kappa= 197,
   R0= (3/10+1/7)/(1/7),
