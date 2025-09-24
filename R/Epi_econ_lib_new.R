@@ -67,110 +67,293 @@ get_transitions_deterministic <- function(n, prob){
   return(transitions)
 }
 
+
+
+
 run_sir_binomial <- function(initial_state,
                              times,
                              parameters,
-                             update_function = get_transitions_stochastic){
-  
+                             update_function = get_transitions_stochastic) {
   # copy initial states
   states <- data.frame(t(initial_state))
-  
+
   # convert population fractions into numbers
-  states[grepl('N.',names(states))] <- round(states[grepl('N.',names(states))] * parameters$pop_size)
-  
+  states[grepl('N.', names(states))] <- round(states[grepl('N.', names(states))] * parameters$pop_size)
+
   # keep total population fixed (adjust Ns if needed)
-  states[grepl('Ns',names(states))] <- parameters$pop_size -
-    sum(states[grepl('N.',names(states)) & !grepl('Ns',names(states))])
-  
+    states[grepl('Ns', names(states))] <- parameters$pop_size -
+    sum(states[grepl('N.', names(states))] & !grepl('Ns', names(states)))
+
+
   # output matrix
   states_out <- matrix(NA, nrow = length(times), ncol = length(states))
   colnames(states_out) <- names(states)
-  
+
   # init stocks and costs
   Ns <- states$Ns; Ni <- states$Ni; Nr <- states$Nr; Nd <- states$Nd
   HealthCost <- 0; SocialActivityCost <- 0
-  
+
   fx_per_capita <- parameters$fx / parameters$pop_size
-  regular_mode <- !is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)
-  
-  for(i_day in times[-1]){
-    beta_t <- parameters$beta
+  regular_mode  <- !is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)
+
+  for (i_day in times[-1]) {
+    beta_t  <- parameters$beta
     Ns_prop <- Ns / parameters$pop_size
-    
+
     if (regular_mode) {
       # ----- Regular SIRD: fixed activity, no activity cost -----
       a_t <- 1
       u_t <- 0
-      
+
       # NOTE: no a_t^2 here in regular mode
       p_infect  <- 1 - exp(- beta_t * (Ni / parameters$pop_size))
       p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)
       p_death   <- 1 - exp(- parameters$pi * parameters$gamma)
-      
+
       new_infections <- update_function(Ns, prob = p_infect)
       new_recoveries <- update_function(Ni, prob = p_recover)
       new_death      <- update_function(Ni, prob = p_death)
-      
+
       # fade-out short-circuit
       if ((Ni - new_recoveries) < parameters$infect_thres) {
         new_recoveries <- Ni
         new_infections <- 0
       }
-      
+
       dNs <- -new_infections
       dNi <-  new_infections - new_recoveries - new_death
       dNr <-  new_recoveries
       dNd <-  new_death
-      
+
       # costs: health only
       HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
-      
+
       Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
-      
+
     } else {
       # ----- Behavioral epi-econ branch -----
       a_t <- a_function(Ni, Ns, parameters)
       u_t <- utility_function(a_t, parameters)
-      
+
       p_infect  <- 1 - exp(- beta_t * a_t^2 * (Ni / parameters$pop_size))
       p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)
       p_death   <- 1 - exp(- parameters$pi * parameters$gamma)
-      
+
       new_infections <- update_function(Ns, prob = p_infect)
       new_recoveries <- update_function(Ni, prob = p_recover)
       new_death      <- update_function(Ni, prob = p_death)
-      
+
       # fade-out short-circuit
       if ((Ni - new_recoveries) < parameters$infect_thres) {
         new_recoveries <- Ni
         new_infections <- 0
       }
-      
+
       dNs <- -new_infections
       dNi <-  new_infections - new_recoveries - new_death
       dNr <-  new_recoveries
       dNd <-  new_death
-      
-      HealthCost <-  HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
+
+      HealthCost <- HealthCost +
+        fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
+
       SocialActivityCost <- SocialActivityCost +
         fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
-      
+
       Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
     }
-    
+
     # update stocks
     Ns <- Ns + dNs; Ni <- Ni + dNi; Nr <- Nr + dNr; Nd <- Nd + dNd
-    
+
     # record
-    states_out[i_day+1,] <- c(Ns, Ni, Nr, Nd,
-                              HealthCost, SocialActivityCost,
-                              HealthCost + SocialActivityCost,
-                              a_t, u_t, Rt)
+    states_out[i_day + 1, ] <- c(Ns, Ni, Nr, Nd,
+                                 HealthCost, SocialActivityCost,
+                                 HealthCost + SocialActivityCost,
+                                 a_t, u_t, Rt)
   }
-  
+
   data.frame(states_out)
 }
-
+#run_sir_binomial function with carry/accumulator mechanism for discrete integer transitions, comment out in normal mode.
+# run_sir_binomial <- function(initial_state,
+#                              times,
+#                              parameters,
+#                              update_function = get_transitions_stochastic){
+# 
+#   # copy initial states
+#   states <- data.frame(t(initial_state))
+# 
+#   # convert population fractions into numbers
+#   states[grepl('N.',names(states))] <- round(states[grepl('N.',names(states))] * parameters$pop_size)
+# 
+#   # keep total population fixed (adjust Ns if needed)
+#   states[grepl('Ns',names(states))] <- parameters$pop_size -
+#     sum(states[grepl('N.',names(states)) & !grepl('Ns',names(states))])
+# 
+#   # output matrix (your code assumes these names exist in initial_state; keeping same behavior)
+#   states_out <- matrix(NA, nrow = length(times), ncol = length(states))
+#   colnames(states_out) <- names(states)
+# 
+#   # init stocks and costs
+#   Ns <- states$Ns; Ni <- states$Ni; Nr <- states$Nr; Nd <- states$Nd
+#   HealthCost <- 0; SocialActivityCost <- 0
+# 
+#   fx_per_capita <- parameters$fx / parameters$pop_size
+#   regular_mode  <- !is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)
+# 
+#   # --- NEW: carry/accumulator switch & helper ---
+#  # use_integer_with_carry <- isTRUE(parameters$integer_with_carry)
+#   # BEFORE
+#   use_integer_with_carry <- isTRUE(parameters$integer_with_carry)
+#   
+#   # AFTER  (only carry when deterministic updater is selected)
+#   use_integer_with_carry <- isTRUE(parameters$integer_with_carry) &&
+#     identical(update_function, get_transitions_deterministic)
+#   
+#   # local carry buffers (only used when use_integer_with_carry == TRUE)
+#   carry <- list(inf = 0, rec = 0, dea = 0)
+# 
+#   take_with_carry <- function(expected, key, cap = Inf) {
+#     # Only used in deterministic integer path; guards + caps to avoid negatives / overflows
+#     if (!is.finite(expected) || expected < 0) expected <- 0
+#     carry[[key]] <<- carry[[key]] + expected
+#     realized <- floor(carry[[key]])
+#     if (realized > cap) realized <- cap
+#     if (realized < 0)  realized <- 0
+#     carry[[key]] <<- carry[[key]] - realized
+#     return(as.numeric(realized))
+#   }
+# 
+#   # record initial row (time 0)
+#   states_out[1,] <- c(Ns, Ni, Nr, Nd,
+#                       HealthCost, SocialActivityCost,
+#                       HealthCost + SocialActivityCost,
+#                       a_t = if (regular_mode) 1 else a_function(Ni, Ns, parameters),
+#                       u_t = if (regular_mode) 0 else utility_function(if (regular_mode) 1 else a_function(Ni, Ns, parameters), parameters),
+#                       Rt  = calculate_Rt(parameters$R0, if (regular_mode) 1 else a_function(Ni, Ns, parameters), Ns/parameters$pop_size, Ni))
+# 
+#   for(i_day in times[-1]){
+#     beta_t   <- parameters$beta
+#     Ns_prop  <- Ns / parameters$pop_size
+# 
+#     if (regular_mode) {
+#       # ----- Regular SIRD: fixed activity, no activity cost -----
+#       a_t <- 1
+#       u_t <- 0
+# 
+#       # NOTE: no a_t^2 here in regular mode
+#       p_infect  <- 1 - exp(- beta_t * (Ni / parameters$pop_size))
+#       p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)
+#       p_death   <- 1 - exp(- parameters$pi * parameters$gamma)
+# 
+#       if (use_integer_with_carry) {
+#         # expected flows
+#         exp_infections <- Ns * p_infect
+#         exp_recoveries <- Ni * p_recover
+#         exp_deaths     <- Ni * p_death
+# 
+#         # realize integers with carry (order: infections, deaths, recoveries)
+#         new_infections <- take_with_carry(exp_infections, "inf", cap = Ns)
+#         new_death      <- take_with_carry(exp_deaths,     "dea", cap = Ni)
+#         new_recoveries <- take_with_carry(exp_recoveries, "rec", cap = max(Ni - new_death, 0))
+# 
+#       } else {
+#         # original path: delegate to update_function (stoch or deterministic)
+#         new_infections <- update_function(Ns, prob = p_infect)
+#         new_recoveries <- update_function(Ni, prob = p_recover)
+#         new_death      <- update_function(Ni, prob = p_death)
+#       }
+# 
+#       # fade-out short-circuit (apply after computing flows)
+#       if ((Ni - new_recoveries) < parameters$infect_thres) {
+#         new_recoveries <- Ni
+#         new_infections <- 0
+#         # optional: clear carries so they don't drip post-fadeout
+#         carry$rec <- 0; carry$inf <- 0; carry$dea <- 0
+#       }
+# 
+#       dNs <- -new_infections
+#       dNi <-  new_infections - new_recoveries - new_death
+#       dNr <-  new_recoveries
+#       dNd <-  new_death
+# 
+#       # costs: choose expected or realized
+#       if (identical(parameters$costs_from, "realized")) {
+#         HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
+#       } else {
+#         # default: expected (smooth, avoids "collapse")
+#         exp_deaths_today <- Ni * p_death
+#         HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * exp_deaths_today
+#       }
+# 
+#       Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
+# 
+#     } else {
+#       # ----- Behavioral epi-econ branch -----
+#       a_t <- a_function(Ni, Ns, parameters)
+#       u_t <- utility_function(a_t, parameters)
+# 
+#       p_infect  <- 1 - exp(- beta_t * a_t^2 * (Ni / parameters$pop_size))
+#       p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)
+#       p_death   <- 1 - exp(- parameters$pi * parameters$gamma)
+# 
+#       if (use_integer_with_carry) {
+#         # expected flows
+#         exp_infections <- Ns * p_infect
+#         exp_recoveries <- Ni * p_recover
+#         exp_deaths     <- Ni * p_death
+# 
+#         # realize integers with carry (order: infections, deaths, recoveries)
+#         new_infections <- take_with_carry(exp_infections, "inf", cap = Ns)
+#         new_death      <- take_with_carry(exp_deaths,     "dea", cap = Ni)
+#         new_recoveries <- take_with_carry(exp_recoveries, "rec", cap = max(Ni - new_death, 0))
+# 
+#       } else {
+#         # original path: delegate to update_function (stoch or deterministic)
+#         new_infections <- update_function(Ns, prob = p_infect)
+#         new_recoveries <- update_function(Ni, prob = p_recover)
+#         new_death      <- update_function(Ni, prob = p_death)
+#       }
+# 
+#       # fade-out short-circuit
+#       if ((Ni - new_recoveries) < parameters$infect_thres) {
+#         new_recoveries <- Ni
+#         new_infections <- 0
+#         carry$rec <- 0; carry$inf <- 0; carry$dea <- 0
+#       }
+# 
+#       dNs <- -new_infections
+#       dNi <-  new_infections - new_recoveries - new_death
+#       dNr <-  new_recoveries
+#       dNd <-  new_death
+# 
+#       # Health cost: expected vs realized
+#       if (identical(parameters$costs_from, "realized")) {
+#         HealthCost <-  HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
+#       } else {
+#         exp_deaths_today <- Ni * p_death
+#         HealthCost <-  HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * exp_deaths_today
+#       }
+# 
+#       SocialActivityCost <- SocialActivityCost +
+#         fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
+# 
+#       Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
+#     }
+# 
+#     # update stocks
+#     Ns <- Ns + dNs; Ni <- Ni + dNi; Nr <- Nr + dNr; Nd <- Nd + dNd
+# 
+#     # record
+#     states_out[i_day+1,] <- c(Ns, Ni, Nr, Nd,
+#                               HealthCost, SocialActivityCost,
+#                               HealthCost + SocialActivityCost,
+#                               a_t, u_t, Rt)
+#   }
+# 
+#   data.frame(states_out)
+# }
 
 # get a vector with the economic summary stats
 get_summary_stats <- function(sim_output){
@@ -238,7 +421,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     "u_t" = "Utility",
     "Rt" = "Reproduction Number",
     "HealthCost" = "Health Cost",
-    "SocialActivityCost" = "Social Activity Cost",
+    "SocialActivityCost" = "Activity Cost",
     "TotalCost" = "Total Cost"
   )
   
@@ -395,8 +578,8 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   
   # Social Activity Cost boxplot with mean, 95% CI, and deterministic point
   boxplot(output_summary$SocialActivityCost,
-          main = "Social Activity Cost",
-          ylab = "Social Activity Cost",
+          main = "Activity Cost",
+          ylab = "Activity Cost",
           ylim = range(c(output_summary$SocialActivityCost, output_summary_deterministic$SocialActivityCost), na.rm = TRUE),
           col = "gray90")
   
@@ -414,7 +597,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   
   
   # prepare summary statistics
-  print_out <- data.frame(output=c('Health Cost (per capita)','Social Activity Cost (per capita)','Total Cost (per capita)'),
+  print_out <- data.frame(output=c('Health Cost (per capita)','Activity Cost (per capita)','Total Cost (per capita)'),
                           deterministic = get_summary_stats(output_deterministic[nrow(output_deterministic),]),
                           stochastic = get_summary_stats(output_summary))
   
