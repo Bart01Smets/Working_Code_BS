@@ -7,7 +7,7 @@
 #setwd("C:/Users/Bart Smets/OneDrive/Documenten/GitHub/Working_Code_BS/R")
 library(confintr)
 library(scales)
-
+#Activity function calculation
 a_function <- function(Ni, Ns, parameters) {
   if (!is.null(parameters$bool_regular_sird) && isTRUE(parameters$bool_regular_sird)) {
     return(1)
@@ -67,9 +67,7 @@ get_transitions_deterministic <- function(n, prob){
   return(transitions)
 }
 
-
-
-
+#Run the model for both stochastic and deterministic case, with option to include or exclude behavior
 run_sir_binomial <- function(initial_state,
                              times,
                              parameters,
@@ -175,7 +173,8 @@ run_sir_binomial <- function(initial_state,
 
   data.frame(states_out)
 }
-#run_sir_binomial function with carry/accumulator mechanism for discrete integer transitions, comment out in normal mode.
+
+# Run model with carry/accumulator mechanism for discrete integer transitions, comment out in normal mode.
 # run_sir_binomial <- function(initial_state,
 #                              times,
 #                              parameters,
@@ -461,7 +460,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
     # Plot quantile-based (light blue)
     polygon(c(time_vec, rev(time_vec)), c(ci_upper, rev(ci_lower)), col=alpha("lightblue", 0.4), border=NA)
     
-    # Plot mean-based CI (light green)
+    # Plot mean-based CI (red)
     polygon(c(time_vec, rev(time_vec)), c(ci_hi_meanband, rev(ci_lo_meanband)), col=alpha("red", 0.4), border=NA)
     
     # Plot mean line
@@ -484,9 +483,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
   cat(sprintf("Health Cost: %.0f [%.0f, %.0f]\n", mean_health, ci_health[1], ci_health[2]))
   cat(sprintf("Social Activity Cost: %.0f [%.0f, %.0f]\n", mean_social, ci_social[1], ci_social[2]))
   
-  
-  
-  ### Quantile and confidence interval values calculation ###
+  ### Quantile and confidence interval values calculation to report in paper###
   # 1. Health Cost Quantile Interval % differences
   health_quant <- quantile(output_summary$HealthCost, probs = c(0.025, 0.975), na.rm = TRUE)
   pct_health_upper = 100 * (health_quant[2] - mean_health) / mean_health
@@ -624,7 +621,7 @@ compare_sim_output <- function(output_experiments, output_deterministic,
               quantile(peak_times, 0.975, na.rm = TRUE)))
   dev.off()
 }
-
+#
 run_experiments <- function(initial_state, times, parameters, update_function,
                             num_experiments){
   
@@ -664,3 +661,267 @@ run_experiments <- function(initial_state, times, parameters, update_function,
   return(list(output_summary = output_summary,
               output_all = output_all))
 }
+
+# ################################################################
+# # Sensitivity analysis helpers 
+# # - Parameter sweeps (compute_sensitivity_grid)
+# # - Number-of-simulations analysis (compute_delta_vs_num_sims)
+# ################################################################
+# 
+# 
+# # --- helpers already used by sensitivity ---
+# apply_kappa <- function(params, kappa_target, mode = c("balanced","hold_pi","hold_v"),
+#                         pi_min = 1e-6, pi_max = 0.2) {
+#   mode <- match.arg(mode)
+#   pi0 <- params$pi; v0 <- params$v; k0 <- pi0 * v0
+#   stopifnot(is.finite(kappa_target), kappa_target > 0, is.finite(k0), k0 > 0)
+#   if (mode == "balanced") {
+#     s <- sqrt(kappa_target / k0)
+#     pi_new <- min(max(pi0 * s, pi_min), pi_max)
+#     v_new  <- kappa_target / pi_new
+#   } else if (mode == "hold_pi") {
+#     pi_new <- pi0
+#     v_new  <- kappa_target / pi_new
+#   } else { # hold_v
+#     v_new  <- v0
+#     pi_new <- min(max(kappa_target / v_new, pi_min), pi_max)
+#     v_new  <- kappa_target / pi_new
+#   }
+#   params$pi <- pi_new; params$v <- v_new; params$kappa <- kappa_target
+#   params
+# }
+# 
+# # Core engine to compute one Δ-cost point for a given parameter value
+# compute_delta_cost_point <- function(baseline_params, param_name, value,
+#                                      num_experiments_sens = 300,
+#                                      fadeout_threshold_for_diff = 100,
+#                                      update_function_stoch = get_transitions_stochastic,
+#                                      update_function_det   = get_transitions_deterministic) {
+#   # clone + set
+#   params <- baseline_params
+#   if (param_name == "Ni0") {
+#     params$ni0 <- value / params$pop_size
+#   } else if (param_name == "kappa") {
+#     params <- apply_kappa(params, kappa_target = value, mode = "balanced")
+#   } else {
+#     params[[param_name]] <- value
+#   }
+#   params$R0 <- params$beta / params$gamma
+#   
+#   init_state <- c(Ns=params$ns0, Ni=params$ni0, Nr=params$nr0, Nd=params$nd0,
+#                   HealthCost=0, SocialActivityCost=0, TotalCost=0,
+#                   a_t=NA, u_t=NA, Rt=NA)
+#   times <- 0:params$time_horizon
+#   
+#   # deterministic baseline
+#   det_out <- run_sir_binomial(init_state, times, params, update_function_det)
+#   det_total <- det_out[nrow(det_out), "TotalCost"]
+#   
+#   # stochastic experiments
+#   sims <- run_experiments(init_state, times, params, update_function_stoch,
+#                           num_experiments = num_experiments_sens)
+#   summ <- sims$output_summary
+#   if (fadeout_threshold_for_diff > 0) {
+#     keep <- (summ$Nr + summ$Ni) >= fadeout_threshold_for_diff
+#     if (!any(keep)) return(NULL)
+#     summ <- summ[keep, , drop = FALSE]
+#   }
+#   
+#   stoch_totals <- summ$TotalCost
+#   ci <- confintr::ci_mean(stoch_totals)
+#   q  <- stats::quantile(stoch_totals, c(0.025, 0.975), na.rm = TRUE)
+#   
+#   data.frame(
+#     Parameter   = param_name,
+#     Value       = value,
+#     Det_Total   = det_total,
+#     Stoch_Mean  = as.numeric(ci$estimate),
+#     CI_Lo       = as.numeric(ci$interval[1]),
+#     CI_Hi       = as.numeric(ci$interval[2]),
+#     Q_Lo        = as.numeric(q[1]),
+#     Q_Hi        = as.numeric(q[2]),
+#     Diff_Mean   = as.numeric(ci$estimate) - det_total,
+#     Diff_CI_Lo  = as.numeric(ci$interval[1]) - det_total,
+#     Diff_CI_Hi  = as.numeric(ci$interval[2]) - det_total,
+#     Diff_Q_Lo   = as.numeric(q[1]) - det_total,
+#     Diff_Q_Hi   = as.numeric(q[2]) - det_total
+#   )
+# }
+# 
+# # Vectorized sweep over a grid for one parameter
+# compute_sensitivity_grid <- function(baseline_params, param_name, values,
+#                                      num_experiments_sens = 300,
+#                                      fadeout_threshold_for_diff = 100) {
+#   out <- lapply(values, function(v)
+#     compute_delta_cost_point(baseline_params, param_name, v,
+#                              num_experiments_sens, fadeout_threshold_for_diff))
+#   do.call(rbind, Filter(Negate(is.null), out))
+# }
+# 
+# ### Δ-cost vs number of simulations ###
+# compute_delta_vs_num_sims <- function(baseline_params, n_grid,
+#                                       fadeout_threshold_for_diff = 100) {
+#   init_state <- c(Ns=baseline_params$ns0, Ni=baseline_params$ni0, Nr=baseline_params$nr0, Nd=baseline_params$nd0,
+#                   HealthCost=0, SocialActivityCost=0, TotalCost=0, a_t=NA, u_t=NA, Rt=NA)
+#   times <- 0:baseline_params$time_horizon
+#   det_out <- run_sir_binomial(init_state, times, baseline_params, get_transitions_deterministic)
+#   det_total <- det_out[nrow(det_out), "TotalCost"]
+#   
+#   rows <- lapply(n_grid, function(N) {
+#     sims <- run_experiments(init_state, times, baseline_params, get_transitions_stochastic,
+#                             num_experiments = N)
+#     summ <- sims$output_summary
+#     if (fadeout_threshold_for_diff > 0) {
+#       keep <- (summ$Nr + summ$Ni) >= fadeout_threshold_for_diff
+#       if (!any(keep)) return(NULL)
+#       summ <- summ[keep, , drop = FALSE]
+#     }
+#     ci <- confintr::ci_mean(summ$TotalCost)
+#     data.frame(
+#       num_sims    = N,
+#       det_total   = det_total,
+#       stoch_mean  = as.numeric(ci$estimate),
+#       stoch_ci_lo = as.numeric(ci$interval[1]),
+#       stoch_ci_hi = as.numeric(ci$interval[2]),
+#       diff_mean   = as.numeric(ci$estimate) - det_total,
+#       diff_ci_lo  = as.numeric(ci$interval[1]) - det_total,
+#       diff_ci_hi  = as.numeric(ci$interval[2]) - det_total
+#     )
+#   })
+#   do.call(rbind, Filter(Negate(is.null), rows))
+# }
+
+################################################################
+# Sensitivity analysis helpers 
+# - Parameter sweeps (compute_sensitivity_grid)
+# - Number-of-simulations analysis (compute_delta_vs_num_sims)
+################################################################
+
+# --- helper used by sensitivity ---
+apply_kappa <- function(params, kappa_target, mode = c("balanced","hold_pi","hold_v"),
+                        pi_min = 1e-6, pi_max = 0.2) {
+  mode <- match.arg(mode)
+  pi0 <- params$pi; v0 <- params$v; k0 <- pi0 * v0
+  stopifnot(is.finite(kappa_target), kappa_target > 0, is.finite(k0), k0 > 0)
+  if (mode == "balanced") {
+    s <- sqrt(kappa_target / k0)
+    pi_new <- min(max(pi0 * s, pi_min), pi_max)
+    v_new  <- kappa_target / pi_new
+  } else if (mode == "hold_pi") {
+    pi_new <- pi0
+    v_new  <- kappa_target / pi_new
+  } else { # hold_v
+    v_new  <- v0
+    pi_new <- min(max(kappa_target / v_new, pi_min), pi_max)
+    v_new  <- kappa_target / pi_new
+  }
+  params$pi <- pi_new; params$v <- v_new; params$kappa <- kappa_target
+  params
+}
+
+# Core engine to compute one Δ-cost point for a given parameter value
+compute_delta_cost_point <- function(baseline_params, param_name, value,
+                                     num_experiments_sens = 300,
+                                     fadeout_threshold_for_diff = 100,
+                                     update_function_stoch = get_transitions_stochastic,
+                                     update_function_det   = get_transitions_deterministic) {
+  # clone + set
+  params <- baseline_params
+  if (param_name == "Ni0") {
+    params$ni0 <- value / params$pop_size
+  } else if (param_name == "kappa") {
+    params <- apply_kappa(params, kappa_target = value, mode = "balanced")
+  } else {
+    params[[param_name]] <- value
+  }
+  params$R0 <- params$beta / params$gamma
+  
+  init_state <- c(Ns = params$ns0, Ni = params$ni0, Nr = params$nr0, Nd = params$nd0,
+                  HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
+                  a_t = NA, u_t = NA, Rt = NA)
+  times <- 0:params$time_horizon
+  
+  # deterministic baseline
+  det_out <- run_sir_binomial(init_state, times, params, update_function_det)
+  det_total <- det_out[nrow(det_out), "TotalCost"]
+  
+  # stochastic experiments
+  sims <- run_experiments(init_state, times, params, update_function_stoch,
+                          num_experiments = num_experiments_sens)
+  summ <- sims$output_summary
+  if (fadeout_threshold_for_diff > 0) {
+    keep <- (summ$Nr + summ$Ni) >= fadeout_threshold_for_diff
+    if (!any(keep)) return(NULL)
+    summ <- summ[keep, , drop = FALSE]
+  }
+  
+  stoch_totals <- summ$TotalCost
+  ci <- confintr::ci_mean(stoch_totals)
+  q  <- stats::quantile(stoch_totals, c(0.025, 0.975), na.rm = TRUE)
+  
+  data.frame(
+    Parameter   = param_name,
+    Value       = value,
+    Det_Total   = det_total,
+    Stoch_Mean  = as.numeric(ci$estimate),
+    CI_Lo       = as.numeric(ci$interval[1]),
+    CI_Hi       = as.numeric(ci$interval[2]),
+    Q_Lo        = as.numeric(q[1]),
+    Q_Hi        = as.numeric(q[2]),
+    Diff_Mean   = as.numeric(ci$estimate) - det_total,
+    Diff_CI_Lo  = as.numeric(ci$interval[1]) - det_total,
+    Diff_CI_Hi  = as.numeric(ci$interval[2]) - det_total,
+    Diff_Q_Lo   = as.numeric(q[1]) - det_total,
+    Diff_Q_Hi   = as.numeric(q[2]) - det_total
+  )
+}
+
+# Vectorized sweep over a grid for one parameter
+compute_sensitivity_grid <- function(baseline_params, param_name, values,
+                                     num_experiments_sens = 300,
+                                     fadeout_threshold_for_diff = 100) {
+  out <- lapply(values, function(v)
+    compute_delta_cost_point(baseline_params, param_name, v,
+                             num_experiments_sens, fadeout_threshold_for_diff))
+  do.call(rbind, Filter(Negate(is.null), out))
+}
+
+# Δ-cost vs number of simulations (matches manual spec setup)
+compute_delta_vs_num_sims <- function(baseline_params, n_grid,
+                                      fadeout_threshold_for_diff = 100) {
+  # Use a local copy and recompute R0 exactly as in your manual block
+  params <- baseline_params
+  params$R0 <- params$beta / params$gamma
+  
+  init_state <- c(Ns = params$ns0, Ni = params$ni0, Nr = params$nr0, Nd = params$nd0,
+                  HealthCost = 0, SocialActivityCost = 0, TotalCost = 0,
+                  a_t = NA, u_t = NA, Rt = NA)
+  times <- 0:params$time_horizon
+  
+  det_out <- run_sir_binomial(init_state, times, params, get_transitions_deterministic)
+  det_total <- det_out[nrow(det_out), "TotalCost"]
+  
+  rows <- lapply(n_grid, function(N) {
+    sims <- run_experiments(init_state, times, params, get_transitions_stochastic,
+                            num_experiments = N)
+    summ <- sims$output_summary
+    if (fadeout_threshold_for_diff > 0) {
+      keep <- (summ$Nr + summ$Ni) >= fadeout_threshold_for_diff
+      if (!any(keep)) return(NULL)
+      summ <- summ[keep, , drop = FALSE]
+    }
+    ci <- confintr::ci_mean(summ$TotalCost)
+    data.frame(
+      num_sims    = N,
+      det_total   = det_total,
+      stoch_mean  = as.numeric(ci$estimate),
+      stoch_ci_lo = as.numeric(ci$interval[1]),
+      stoch_ci_hi = as.numeric(ci$interval[2]),
+      diff_mean   = as.numeric(ci$estimate) - det_total,
+      diff_ci_lo  = as.numeric(ci$interval[1]) - det_total,
+      diff_ci_hi  = as.numeric(ci$interval[2]) - det_total
+    )
+  })
+  do.call(rbind, Filter(Negate(is.null), rows))
+}
+
