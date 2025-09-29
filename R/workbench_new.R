@@ -37,7 +37,7 @@ parameters <- list(
   infect_thres = 1,
   bool_regular_sird = FALSE,  # TRUE => regular SIRD (a=1, no ActivityCost)
   
-  integer_with_carry = FALSE,   # use Option B path in run_sir_binomial()
+  integer_with_carry = TRUE,   # use Option B path in run_sir_binomial()
   costs_from = "realized"      # "realized" => Deterministic integer costs
   )
 
