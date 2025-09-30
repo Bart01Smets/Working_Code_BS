@@ -67,19 +67,19 @@ get_transitions_deterministic <- function(n, prob){
   return(transitions)
 }
 
-# Unified model with optional carry/accumulator enabled via parameters$integer_with_carry
+#The main model with options to run as abehavioral SIRD model, and with/without carry/accumulator mechanism
 run_sir_binomial <- function(initial_state,
                              times,
                              parameters,
                              update_function = get_transitions_stochastic) {
-  # ---- setup & sanity ----
+  # setup & sanity 
   stopifnot(is.list(parameters), length(times) >= 1)
   
   # copy initial states
   states <- data.frame(t(initial_state))
   
   # convert population fractions into counts
-  isN <- grepl("^N[si rd]", names(states)) | grepl("^N[si rd]$", names(states)) | grepl("^N[si rd].*", names(states))
+  #isN <- grepl("^N[si rd]", names(states)) | grepl("^N[si rd]$", names(states)) | grepl("^N[si rd].*", names(states))
   # simpler & robust: any name starting with 'N' is a compartment
   isN <- grepl("^N", names(states))
   states[isN] <- round(states[isN] * parameters$pop_size)
@@ -179,7 +179,6 @@ run_sir_binomial <- function(initial_state,
       if ((Ni - new_recoveries) < parameters$infect_thres) {
         new_recoveries <- Ni
         new_infections <- 0
-        # clear carries so they don't leak after fadeout
         carry$rec <- 0; carry$inf <- 0; carry$dea <- 0
       }
       

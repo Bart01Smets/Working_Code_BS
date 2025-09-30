@@ -37,11 +37,9 @@ parameters <- list(
   infect_thres = 1,
   bool_regular_sird = FALSE,  # TRUE => regular SIRD (a=1, no ActivityCost)
   
-  integer_with_carry = TRUE,   # use Option B path in run_sir_binomial()
+  integer_with_carry = FALSE,   # Use discrete transitions in deterministic case option
   costs_from = "realized"      # "realized" => Deterministic integer costs
   )
-
-parameters$beta <- 0.3 + parameters$gamma
 
 # define number of stochastic runs
 num_experiments <- 500
