@@ -135,7 +135,7 @@ suppressPackageStartupMessages({
 # ## SENSITIVITY: Δ Total Cost (Stochastic − Deterministic)
 # ## --------------------------------------------------------------
 # 
-# # Math-safe axis labels / titles (match your original spec)
+# # Math-safe axis labels / titles 
 # x_label_expr <- function(param_name) {
 #   switch(param_name,
 #          "beta"         = expression(paste("Value of ", beta, " (transmission rate)")),
