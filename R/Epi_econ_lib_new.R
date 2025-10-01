@@ -79,8 +79,6 @@ run_sir_binomial <- function(initial_state,
   states <- data.frame(t(initial_state))
   
   # convert population fractions into counts
-  #isN <- grepl("^N[si rd]", names(states)) | grepl("^N[si rd]$", names(states)) | grepl("^N[si rd].*", names(states))
-  # simpler & robust: any name starting with 'N' is a compartment
   isN <- grepl("^N", names(states))
   states[isN] <- round(states[isN] * parameters$pop_size)
   
