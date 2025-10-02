@@ -67,7 +67,6 @@ get_transitions_deterministic <- function(n, prob){
   return(transitions)
 }
 
-#The main model with options to run as abehavioral SIRD model, and with/without carry/accumulator mechanism
 run_sir_binomial <- function(initial_state,
                              times,
                              parameters,
@@ -83,7 +82,6 @@ run_sir_binomial <- function(initial_state,
   states[isN] <- round(states[isN] * parameters$pop_size)
   
   # keep total population fixed: Ns = pop - (Ni+Nr+Nd)
-  # (Fixes the boolean-mask mixup in the original line.)
   Ns_idx <- which(names(states) == "Ns")
   other_idx <- which(isN & names(states) != "Ns")
   states[[Ns_idx]] <- parameters$pop_size - sum(states[other_idx])
@@ -101,7 +99,6 @@ run_sir_binomial <- function(initial_state,
   
   # ---- carry/accumulator switch ----
   use_integer_with_carry <- isTRUE(parameters$integer_with_carry)
-  # apply carry only when using deterministic updater (keeps stochastic path truly stochastic)
   only_with_det_updater <- TRUE
   if (use_integer_with_carry && only_with_det_updater) {
     use_integer_with_carry <- identical(update_function, get_transitions_deterministic)
@@ -111,7 +108,6 @@ run_sir_binomial <- function(initial_state,
   carry <- list(inf = 0, rec = 0, dea = 0)
   
   take_with_carry <- function(expected, key, cap = Inf) {
-    # Clamp bad inputs
     if (!is.finite(expected) || expected < 0) expected <- 0
     carry[[key]] <<- carry[[key]] + expected
     realized <- floor(carry[[key]])
@@ -127,18 +123,15 @@ run_sir_binomial <- function(initial_state,
       exp_inf <- Ns_cur * p_inf
       exp_rec <- Ni_cur * p_rec
       exp_dea <- Ni_cur * p_dea
-      # realize with caps in a safe order
       new_inf <- take_with_carry(exp_inf, "inf", cap = Ns_cur)
       new_dea <- take_with_carry(exp_dea, "dea", cap = Ni_cur)
       new_rec <- take_with_carry(exp_rec, "rec", cap = max(Ni_cur - new_dea, 0))
-      list(new_inf = new_inf, new_rec = new_rec, new_dea = new_dea,
-           exp_dea_today = exp_dea)
+      list(new_inf = new_inf, new_rec = new_rec, new_dea = new_dea)
     } else {
       new_inf <- update_function(Ns_cur, prob = p_inf)
       new_rec <- update_function(Ni_cur, prob = p_rec)
       new_dea <- update_function(Ni_cur, prob = p_dea)
-      list(new_inf = new_inf, new_rec = new_rec, new_dea = new_dea,
-           exp_dea_today = Ni_cur * p_dea)
+      list(new_inf = new_inf, new_rec = new_rec, new_dea = new_dea)
     }
   }
   
@@ -162,7 +155,6 @@ run_sir_binomial <- function(initial_state,
       a_t <- 1
       u_t <- 0
       
-      # regular: no a_t^2 in infection intensity
       p_infect  <- 1 - exp(- beta_t * (Ni / parameters$pop_size))
       p_recover <- 1 - exp(- (1 - parameters$pi) * parameters$gamma)
       p_death   <- 1 - exp(- parameters$pi * parameters$gamma)
@@ -171,9 +163,7 @@ run_sir_binomial <- function(initial_state,
       new_infections <- flows$new_inf
       new_recoveries <- flows$new_rec
       new_death      <- flows$new_dea
-      exp_deaths_today <- flows$exp_dea_today
       
-      # fadeout
       if ((Ni - new_recoveries) < parameters$infect_thres) {
         new_recoveries <- Ni
         new_infections <- 0
@@ -185,17 +175,13 @@ run_sir_binomial <- function(initial_state,
       dNr <-  new_recoveries
       dNd <-  new_death
       
-      # Health cost: expected (smooth) vs realized (spiky)
-      if (identical(parameters$costs_from, "realized")) {
-        HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
-      } else {
-        HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * exp_deaths_today
-      }
+      # always realized health cost only
+      HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * 
+        parameters$v * new_death
       
       Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
       
     } else {
-      # behavioral epi-econ
       a_t <- a_function(Ni, Ns, parameters)
       u_t <- utility_function(a_t, parameters)
       
@@ -207,9 +193,7 @@ run_sir_binomial <- function(initial_state,
       new_infections <- flows$new_inf
       new_recoveries <- flows$new_rec
       new_death      <- flows$new_dea
-      exp_deaths_today <- flows$exp_dea_today
       
-      # fadeout
       if ((Ni - new_recoveries) < parameters$infect_thres) {
         new_recoveries <- Ni
         new_infections <- 0
@@ -221,12 +205,9 @@ run_sir_binomial <- function(initial_state,
       dNr <-  new_recoveries
       dNd <-  new_death
       
-      # costs
-      if (identical(parameters$costs_from, "realized")) {
-        HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * new_death
-      } else {
-        HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * parameters$v * exp_deaths_today
-      }
+      # always realized health cost only
+      HealthCost <- HealthCost + fx_per_capita * exp(-parameters$rho * i_day) * 
+        parameters$v * new_death
       
       SocialActivityCost <- SocialActivityCost +
         fx_per_capita * exp(-parameters$rho * i_day) * (Ns + Ni) * abs(u_t)
@@ -234,10 +215,8 @@ run_sir_binomial <- function(initial_state,
       Rt <- calculate_Rt(parameters$R0, a_t, Ns_prop, Ni)
     }
     
-    # update stocks
     Ns <- Ns + dNs; Ni <- Ni + dNi; Nr <- Nr + dNr; Nd <- Nd + dNd
     
-    # record row
     states_out[i_day + 1, ] <- c(Ns, Ni, Nr, Nd,
                                  HealthCost, SocialActivityCost,
                                  HealthCost + SocialActivityCost,
@@ -246,6 +225,7 @@ run_sir_binomial <- function(initial_state,
   
   data.frame(states_out)
 }
+
 
 
 # get a vector with the economic summary stats

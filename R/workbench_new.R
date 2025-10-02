@@ -37,8 +37,7 @@ parameters <- list(
   infect_thres = 1,
   bool_regular_sird = FALSE,  # TRUE => regular SIRD (a=1, no ActivityCost)
   
-  integer_with_carry = FALSE,   # Use discrete transitions in deterministic case option
-  costs_from = "realized"      # "realized" => Deterministic integer costs
+  integer_with_carry = TRUE   # Use discrete transitions in deterministic case option      # "realized" => Deterministic integer costs
   )
 
 # define number of stochastic runs
