@@ -14,6 +14,8 @@ library(ggplot2)
 # load functions
 source("R/epi_econ_lib_new.R")
 
+
+
 # SETUP   ####
 ####################
 
@@ -70,28 +72,83 @@ times <- seq(0, parameters$time_horizon, by = 1)
 # RUN STOCHASTIC BINIOMIAL MODEL REALISATIONS   ####
 ####################################################
 
-# get reference: deterministic model
-output_sim_deterministic <- run_sir_binomial(initial_state = initial_state,
-                                             times = times,
-                                             parameters = parameters,
-                                             update_function = get_transitions_deterministic)
-# Print deterministic peak infection time
-det_peak_time <- which.max(output_sim_deterministic$Ni) - 1
-cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
+# # get reference: deterministic model
+# output_sim_deterministic <- run_sir_binomial(initial_state = initial_state,
+#                                              times = times,
+#                                              parameters = parameters,
+#                                              update_function = get_transitions_deterministic)
+# # Print deterministic peak infection time
+# det_peak_time <- which.max(output_sim_deterministic$Ni) - 1
+# cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
+# 
+# head(output_sim_deterministic)
+# output_experiments <- run_experiments(initial_state = initial_state,
+#                                       times = times,
+#                                       parameters = parameters,
+#                                       update_function = get_transitions_stochastic,
+#                                       num_experiments)
+# 
+# # inspect all results
+# compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial')
+# 
+# # inspect results excl fadeout
+# compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
+#                    fadeout_threshold = fadeout_threshold)
+# === reference + compare (carry-aware) ===
+# === reference + compare (carry-aware) ===
+# --- helper for deterministic variants (no-carry vs carry) ---
+run_det_variant <- function(initial_state, times, parameters, use_carry) {
+  params2 <- parameters
+  params2$integer_with_carry <- isTRUE(use_carry)
+  run_sir_binomial(
+    initial_state = initial_state,
+    times = times,
+    parameters = params2,
+    update_function = get_transitions_deterministic
+  )
+}
 
-head(output_sim_deterministic)
-output_experiments <- run_experiments(initial_state = initial_state,
-                                      times = times,
-                                      parameters = parameters,
-                                      update_function = get_transitions_stochastic,
-                                      num_experiments)
+det_no_carry <- run_det_variant(initial_state, times, parameters, use_carry = FALSE)
 
-# inspect all results
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial')
+rel_name <- "Relative frequencies"
+abs_name <- "Absolute frequencies"
 
-# inspect results excl fadeout
-compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
-                   fadeout_threshold = fadeout_threshold)
+# Print peaks
+det_peak_time <- which.max(det_no_carry$Ni) - 1
+cat(sprintf("%s – Peak Infection Time: %d\n", rel_name, det_peak_time))
+head(det_no_carry)
+
+if (isTRUE(parameters$integer_with_carry)) {
+  # Compare deterministic relative (no-carry) vs deterministic absolute (carry)
+  det_with_carry <- run_det_variant(initial_state, times, parameters, use_carry = TRUE)
+  det_peak_time_carry <- which.max(det_with_carry$Ni) - 1
+  cat(sprintf("%s – Peak Infection Time: %d\n", abs_name, det_peak_time_carry))
+  
+  compare_sim_output(
+    output_experiments   = NULL,
+    output_deterministic = NULL,
+    plot_tag             = "absolute_vs_relative",
+    fadeout_threshold    = 0,
+    compare_carry        = TRUE,
+    output_det_nocarry   = det_no_carry,   # relative (continuous)
+    output_det_carry     = det_with_carry  # absolute (discrete)
+  )
+  
+} else {
+  # Original behavior: stochastic vs deterministic
+  output_experiments <- run_experiments(
+    initial_state = initial_state,
+    times = times,
+    parameters = parameters,
+    update_function = get_transitions_stochastic,
+    num_experiments = num_experiments
+  )
+  
+  compare_sim_output(output_experiments, det_no_carry, plot_tag = "binomial")
+  compare_sim_output(output_experiments, det_no_carry, plot_tag = "binomial",
+                     fadeout_threshold = fadeout_threshold)
+}
+
 
 ## ==============================
 ## FIGURES for Sensitivity Analysis (drop-in)
@@ -106,42 +163,45 @@ suppressPackageStartupMessages({
   library(confintr)
 })
 
-# ## --------------------------------------------------------------
-# ## FIGURE: Δ Total Cost (Stochastic − Deterministic) vs # Sims
-# ## --------------------------------------------------------------
-# n_grid <- seq(100, 1000, length.out = 10)
-# diff_df <- compute_delta_vs_num_sims(parameters, n_grid, fadeout_threshold_for_diff = 100)
-# 
-# p_diff_nsims <- ggplot(diff_df, aes(x = num_sims, y = diff_mean)) +
-#   geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), fill = "red", alpha = 0.25) +
-#   geom_line(size = 1) +
-#   geom_point(size = 1.8) +
-#   geom_hline(yintercept = 0, linetype = "dashed") +
-#   scale_x_continuous(breaks = n_grid) +
-#   labs(
-#     title = "Impact of simulations on difference in total cost",
-#     x = "Number of stochastic simulations",
-#     y = "Cost difference"
-#   ) +
-#   theme_minimal(base_size = 12)
-# 
-# print(p_diff_nsims)
-# ggsave("figures/diff_totalcost_vs_num_sims.pdf", p_diff_nsims, width = 8, height = 5)
-# ggsave("figures/diff_totalcost_vs_num_sims.png", p_diff_nsims, width = 8, height = 5, dpi = 200)
-# print(diff_df)
+## --------------------------------------------------------------
+## FIGURE: Δ Total Cost (Stochastic − Deterministic) vs # Sims
+## --------------------------------------------------------------
+n_grid <- seq(100, 1000, length.out = 10)
+diff_df <- compute_delta_vs_num_sims(parameters, n_grid, fadeout_threshold_for_diff = 100)
+
+p_diff_nsims <- ggplot(diff_df, aes(x = num_sims, y = diff_mean)) +
+  geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), fill = "red", alpha = 0.25) +
+  geom_line(size = 1) +
+  geom_point(size = 1.8) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_x_continuous(breaks = n_grid) +
+  labs(
+    x = "Number of stochastic simulations",
+    y = "Cost difference"
+  ) +
+  theme(
+axis.title = element_text(size = 16),
+axis.text  = element_text(size = 14)
+)
+
+print(p_diff_nsims)
+ggsave("figures/diff_totalcost_vs_num_sims.pdf", p_diff_nsims, width = 8, height = 5)
+ggsave("figures/diff_totalcost_vs_num_sims.png", p_diff_nsims, width = 8, height = 5, dpi = 200)
+print(diff_df)
 
 # ## --------------------------------------------------------------
 # ## SENSITIVITY: Δ Total Cost (Stochastic − Deterministic)
 # ## --------------------------------------------------------------
 # 
-# # Math-safe axis labels / titles 
+# # Math-safe axis labels / titles
 # x_label_expr <- function(param_name) {
 #   switch(param_name,
 #          "beta"         = expression(paste("Value of ", beta, " (transmission rate)")),
 #          "gamma"        = expression(paste("Value of ", gamma, " (recovery rate)")),
 #          "rho"          = expression(paste("Value of ", rho, " (discount rate)")),
-#          "kappa"        = expression(paste("Value of ", kappa, " (infection cost parameter)")),
-#          "Ni0"          = expression(paste("Value of ", N[i](0), " (initial infected)")),
+# "pi"           = expression(paste("Value of ", pi,  " (infection fatality probability)")),
+# "v"            = expression(paste("Value of ", v,   " (value of life)")),
+#          "Ni0"          = expression(paste("Value of ", N[i](0), " (initially infected individuals)")),
 #          "pop_size"     = expression(paste("Value of ", N, " (population size)")),
 #          "time_horizon" = expression(paste("Value of ", T[max], " (time horizon)")),
 #          as.expression(bquote(.(paste0("Value of ", gsub("_", " ", param_name)))))
@@ -152,7 +212,8 @@ suppressPackageStartupMessages({
 #          "beta"         = expression(paste("Total cost difference for different values of ", beta)),
 #          "gamma"        = expression(paste("Total cost difference for different values of ", gamma)),
 #          "rho"          = expression(paste("Total cost difference for different values of ", rho)),
-#          "kappa"        = expression(paste("Total cost difference for different values of ", kappa)),
+# "pi"           = expression(paste("Total cost difference for different values of ", pi)),
+# "v"            = expression(paste("Total cost difference for different values of ", v)),
 #          "Ni0"          = expression(paste("Total cost difference for different values of ", N[i](0))),
 #          "pop_size"     = expression(paste("Total cost difference for different values of ", N)),
 #          "time_horizon" = expression(paste("Total cost difference for different values of ", T[max])),
@@ -162,7 +223,8 @@ suppressPackageStartupMessages({
 # 
 # param_ranges <- list(
 #   time_horizon = seq(200, 2000, length.out = 10),
-#   kappa        = seq(50, 500, length.out = 10),
+# pi           = seq(0.001, 0.020, length.out = 10),   # ~0.1% → 2.0% IFR
+# v            = seq(10000, 100000, length.out = 10),   # €10k → €100k value of life
 #   beta         = seq(0.15, 0.65, length.out = 10),
 #   gamma        = seq(1/14, 1/3, length.out = 10),
 #   Ni0          = round(seq(parameters$ni0 * parameters$pop_size,
@@ -180,7 +242,7 @@ suppressPackageStartupMessages({
 #   results <- compute_sensitivity_grid(parameters, param_name, param_ranges[[param_name]],
 #                                       num_experiments_sens = 500,
 #                                       fadeout_threshold_for_diff = 100)
-#   
+# 
 #   # Baseline vline (same logic as manual block)
 #   baseline_val <- switch(param_name,
 #                          "Ni0"          = parameters$ni0 * parameters$pop_size,
@@ -190,11 +252,13 @@ suppressPackageStartupMessages({
 #                          "rho"          = parameters$rho,
 #                          "pop_size"     = parameters$pop_size,
 #                          "time_horizon" = parameters$time_horizon,
+# "pi"           = parameters$pi,   # NEW
+# "v"            = parameters$v,    # NEW
 #                          parameters[[param_name]])
 #   if (param_name %in% c("Ni0", "pop_size")) baseline_val <- as.integer(round(baseline_val))
 #   add_baseline <- (baseline_val >= min(results$Value, na.rm = TRUE)) &&
 #     (baseline_val <= max(results$Value, na.rm = TRUE))
-#   
+# 
 #   p <- ggplot(results, aes(x = Value, y = Diff_Mean)) +
 #     geom_ribbon(aes(ymin = Diff_Q_Lo, ymax = Diff_Q_Hi,
 #                     fill = "95% Quantile Interval"), alpha = 0.20) +
@@ -206,15 +270,18 @@ suppressPackageStartupMessages({
 #     { if (add_baseline) geom_vline(xintercept = baseline_val,
 #                                    linetype = "dotted", color = "blue") else NULL } +
 #     labs(
-#       title = title_expr(param_name),
 #       x     = x_label_expr(param_name),
 #       y     = "Cost difference"
 #     ) +
 #     theme_minimal(base_size = 12) +
+# theme(
+# axis.title = element_text(size = 16),
+#  axis.text  = element_text(size = 14)
+# ) +
 #     scale_fill_manual(values = c("95% Quantile Interval" = "steelblue",
 #                                  "95% Confidence Interval" = "red"),
 #                       guide = "none")
-#   
+# 
 #   print(p)
 #   all_results[[param_name]] <- results
 # }
@@ -224,6 +291,6 @@ suppressPackageStartupMessages({
 # write.csv(sensitivity_results_all, "sensitivity_diff_ALL.csv", row.names = FALSE)
 # cat("Saved PDF to:", out_pdf_all, "\n")
 # cat("Saved CSV to: sensitivity_diff_ALL.csv\n")
-
+# 
 
 
