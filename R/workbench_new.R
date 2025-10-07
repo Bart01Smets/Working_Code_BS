@@ -72,29 +72,6 @@ times <- seq(0, parameters$time_horizon, by = 1)
 # RUN STOCHASTIC BINIOMIAL MODEL REALISATIONS   ####
 ####################################################
 
-# # get reference: deterministic model
-# output_sim_deterministic <- run_sir_binomial(initial_state = initial_state,
-#                                              times = times,
-#                                              parameters = parameters,
-#                                              update_function = get_transitions_deterministic)
-# # Print deterministic peak infection time
-# det_peak_time <- which.max(output_sim_deterministic$Ni) - 1
-# cat(sprintf("Deterministic Peak Infection Time: %d\n", det_peak_time))
-# 
-# head(output_sim_deterministic)
-# output_experiments <- run_experiments(initial_state = initial_state,
-#                                       times = times,
-#                                       parameters = parameters,
-#                                       update_function = get_transitions_stochastic,
-#                                       num_experiments)
-# 
-# # inspect all results
-# compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial')
-# 
-# # inspect results excl fadeout
-# compare_sim_output(output_experiments, output_sim_deterministic, plot_tag='binomial',
-#                    fadeout_threshold = fadeout_threshold)
-# === reference + compare (carry-aware) ===
 # === reference + compare (carry-aware) ===
 # --- helper for deterministic variants (no-carry vs carry) ---
 run_det_variant <- function(initial_state, times, parameters, use_carry) {
@@ -170,19 +147,24 @@ n_grid <- seq(100, 1000, length.out = 10)
 diff_df <- compute_delta_vs_num_sims(parameters, n_grid, fadeout_threshold_for_diff = 100)
 
 p_diff_nsims <- ggplot(diff_df, aes(x = num_sims, y = diff_mean)) +
-  geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), fill = "red", alpha = 0.25) +
+  geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), alpha = 0.25) +
   geom_line(size = 1) +
   geom_point(size = 1.8) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  scale_x_continuous(breaks = n_grid) +
+  scale_x_continuous(
+    limits = c(100, 1000),
+    breaks = n_grid,
+    expand = c(0, 0)
+  ) +
   labs(
     x = "Number of stochastic simulations",
     y = "Cost difference"
   ) +
+  theme_classic(base_size = 14) +
   theme(
-axis.title = element_text(size = 16),
-axis.text  = element_text(size = 14)
-)
+    axis.title = element_text(size = 16),
+    axis.text  = element_text(size = 14)
+  )
 
 print(p_diff_nsims)
 ggsave("figures/diff_totalcost_vs_num_sims.pdf", p_diff_nsims, width = 8, height = 5)
