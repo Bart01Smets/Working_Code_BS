@@ -39,7 +39,7 @@ parameters <- list(
   infect_thres = 1,
   bool_regular_sird = FALSE,  # TRUE => regular SIRD (a=1, no ActivityCost)
   
-  integer_with_carry = TRUE   # Use discrete transitions in deterministic case option      # "realized" => Deterministic integer costs
+  integer_with_carry = FALSE   # Use discrete transitions in deterministic case option      # "realized" => Deterministic integer costs
   )
 
 # define number of stochastic runs
@@ -105,7 +105,7 @@ if (isTRUE(parameters$integer_with_carry)) {
     output_experiments   = NULL,
     output_deterministic = NULL,
     plot_tag             = "absolute_vs_relative",
-    fadeout_threshold    = 0,
+    fadeout_threshold    = 100,
     compare_carry        = TRUE,
     output_det_nocarry   = det_no_carry,   # relative (continuous)
     output_det_carry     = det_with_carry  # absolute (discrete)
@@ -139,37 +139,37 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(confintr)
 })
-
-## --------------------------------------------------------------
-## FIGURE: Δ Total Cost (Stochastic − Deterministic) vs # Sims
-## --------------------------------------------------------------
-n_grid <- seq(100, 1000, length.out = 10)
-diff_df <- compute_delta_vs_num_sims(parameters, n_grid, fadeout_threshold_for_diff = 100)
-
-p_diff_nsims <- ggplot(diff_df, aes(x = num_sims, y = diff_mean)) +
-  geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), alpha = 0.25) +
-  geom_line(size = 1) +
-  geom_point(size = 1.8) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  scale_x_continuous(
-    limits = c(100, 1000),
-    breaks = n_grid,
-    expand = c(0, 0)
-  ) +
-  labs(
-    x = "Number of stochastic simulations",
-    y = "Cost difference"
-  ) +
-  theme_classic(base_size = 14) +
-  theme(
-    axis.title = element_text(size = 16),
-    axis.text  = element_text(size = 14)
-  )
-
-print(p_diff_nsims)
-ggsave("figures/diff_totalcost_vs_num_sims.pdf", p_diff_nsims, width = 8, height = 5)
-ggsave("figures/diff_totalcost_vs_num_sims.png", p_diff_nsims, width = 8, height = 5, dpi = 200)
-print(diff_df)
+# 
+# ## --------------------------------------------------------------
+# ## FIGURE: Δ Total Cost (Stochastic − Deterministic) vs # Sims
+# ## --------------------------------------------------------------
+# n_grid <- seq(100, 1000, length.out = 10)
+# diff_df <- compute_delta_vs_num_sims(parameters, n_grid, fadeout_threshold_for_diff = 100)
+# 
+# p_diff_nsims <- ggplot(diff_df, aes(x = num_sims, y = diff_mean)) +
+#   geom_ribbon(aes(ymin = diff_ci_lo, ymax = diff_ci_hi), alpha = 0.25) +
+#   geom_line(size = 1) +
+#   geom_point(size = 1.8) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   scale_x_continuous(
+#     limits = c(100, 1000),
+#     breaks = n_grid,
+#     expand = c(0, 0)
+#   ) +
+#   labs(
+#     x = "Number of stochastic simulations",
+#     y = "Cost difference"
+#   ) +
+#   theme_classic(base_size = 14) +
+#   theme(
+#     axis.title = element_text(size = 16),
+#     axis.text  = element_text(size = 14)
+#   )
+# 
+# print(p_diff_nsims)
+# ggsave("figures/diff_totalcost_vs_num_sims.pdf", p_diff_nsims, width = 8, height = 5)
+# ggsave("figures/diff_totalcost_vs_num_sims.png", p_diff_nsims, width = 8, height = 5, dpi = 200)
+# print(diff_df)
 
 # ## --------------------------------------------------------------
 # ## SENSITIVITY: Δ Total Cost (Stochastic − Deterministic)
